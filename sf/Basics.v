@@ -858,6 +858,7 @@ Proof.
   destruct b.
     rewrite H. rewrite H. reflexivity.
     rewrite H. rewrite H. reflexivity.
+  Qed.
 
 (** Now state and prove a theorem [negation_fn_applied_twice] similar
     to the previous one but where the second hypothesis says that the
@@ -943,6 +944,8 @@ Proof.
         converting it to unary and then incrementing. 
 *)
 
+Module BinBinary.
+
 Inductive bin : Type :=
   | Empty : bin
   | O : bin -> bin
@@ -980,6 +983,8 @@ Fixpoint bin_to_nat (n : bin) : nat :=
 
 Example bin_to_nat_test1 : bin_to_nat (I (O (I (O Empty)))) = 5.
 Proof. reflexivity. Qed.
+
+End BinBinary.
 
 (** [] *)
 
