@@ -691,8 +691,7 @@ Fixpoint normalize (n : bin) : bin :=
     | BI n'  => BI (normalize n')
     | BO n'  => match normalize n' with
                   | BEmpty  => BEmpty
-                  | BO n'   => BO (BO n')
-                  | BI n'   => BO (BI n')
+                  | x       => BO x
                 end
   end.
 
@@ -905,9 +904,23 @@ Proof.
 (** **** Exercise: 2 stars, advanced (plus_comm_informal) *)
 (** Translate your solution for [plus_comm] into an informal proof. *)
 
-(** Theorem: Addition is commutative.
+(** Theorem: Addition is commutative, that is, n + m = m + n.
  
-    Proof: (* FILL IN HERE *)
+    Proof: The proof proceeds by induction on n.
+
+    First, consider the case where n = 0. We know 0 + m = m and m + 0 = m,
+      so the statement reduces to m = m which is trivially true.
+    
+    Now, suppose n = S n' and we want to prove (S n') + m = m + (S n'),
+      where n' + m = m + n'.
+    By the definition of +, we can rewrite the left side as S (n' + m).
+    By plus_n_Sm, we know the right side is equal to S (m + n'). We now need
+      to prove S (n' + m) = S (m + n'), which is immediate from the
+      induction hypothesis.
+
+    Qed. I am as high as a kite. I should read the copy of Concrete Mathematics
+    that's sitting on my bookshelf.
+
 []
 *)
 
