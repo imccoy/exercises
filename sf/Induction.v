@@ -462,6 +462,7 @@ Theorem zero_nbeq_S : forall n:nat,
   beq_nat 0 (S n) = false.
 Proof.
   intros n. simpl. reflexivity.
+Qed.
 
 Theorem andb_false_r : forall b : bool,
   andb b false = false.
@@ -504,6 +505,7 @@ Proof.
    Case "b = false". simpl. destruct c.
      SCase "c = true". simpl. reflexivity.
      SCase "c = false". simpl. reflexivity.
+Qed.
 
 Theorem mult_plus_distr_r : forall n m p : nat,
   (n + m) * p = (n * p) + (m * p).
