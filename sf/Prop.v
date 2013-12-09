@@ -1282,6 +1282,157 @@ Proof. intros X l H.
       apply Hevn.
 Qed.
 
+Fixpoint last_element {X:Type} (xs:list X) : list X :=
+  match xs with
+  | [] => [] 
+  | [x] => [x]
+  | x::xs' => last_element xs'
+  end.
+
+Fixpoint without_last_element {X:Type} (xs:list X) : (list X) :=
+  match xs with
+  | [] => []
+  | [_] => []
+  | x::xs' => x::(without_last_element xs')
+  end.
+
+Theorem match_app_singleton: forall (X Y:Type) (l:list X) (v:X) (no yes:Y),
+  match l ++ [v] with
+  | [] => no
+  | h :: t => yes
+  end = yes.
+Proof.
+  intros X Y l v no yes.
+  destruct l.
+    simpl. reflexivity.
+    simpl. reflexivity.
+Qed.
+
+Theorem snoc_last_element: forall (X: Type) (l1 l2: list X) (v:X),
+  snoc l1 v = l2 -> last_element l2 = [v].
+Proof.
+  intros X l1 l2 v H.
+  rewrite snoc_appends in H.
+  generalize dependent l2.
+  induction l1 as [|h1 t1].
+    Case "l1 = []". intros l2 H. rewrite <- H. reflexivity.
+    Case "l1 = h1 :: t1".
+      intros l2 H.
+      rewrite <- H.
+      simpl. rewrite match_app_singleton.
+      destruct l2.
+        simpl in H. inversion H.
+      inversion H.
+      apply IHt1. reflexivity.
+Qed.
+
+Theorem snoc_without_last_element: forall (X:Type) (l1 l2: list X) (v:X),
+  snoc l1 v = l2 -> l1 = without_last_element l2.
+Proof.
+  intros X l1 l2 v H.
+  rewrite snoc_appends in H.
+  generalize dependent l2.
+  induction l1 as [|h1 t1].
+    intros l2 H. Case "l1 = []". rewrite <- H. simpl. reflexivity.
+    intros l2 H. Case "l1 = h1 :: t1".
+      rewrite <- H. simpl. rewrite match_app_singleton.
+      rewrite <- IHt1 with (t1 ++ [v]).
+      reflexivity.
+      reflexivity.
+Qed.
+
+Theorem snoc_rev: forall (X:Type) (l:list X) (v:X),
+  snoc (rev l) v = rev (v :: l).
+Proof.
+  intros X l v. simpl. reflexivity.
+Qed.
+
+Theorem cons_without_last_element: forall (X:Type) (t:list X) (v h:X),
+  v :: without_last_element (h :: t) = without_last_element (v :: h :: t).
+Proof.
+  intros X l v h.
+   simpl. reflexivity.
+Qed.
+
+Theorem last_element_cons: forall (X:Type) (t:list X) (v h:X),
+  last_element (v :: h :: t) = last_element (h :: t).
+Proof.
+  intros X t v h.
+  simpl. reflexivity.
+Qed.
+
+Theorem last_element_app: forall (X:Type) (l:list X) (v:X),
+  last_element(l ++ [v]) = [v].
+Proof.
+  intros X l v.
+  induction l.
+    simpl. reflexivity.
+    simpl. rewrite IHl. rewrite match_app_singleton. reflexivity.
+Qed.
+
+
+Theorem without_last_element_rebuild: forall (X:Type) (l:list X),
+  l = without_last_element l ++ last_element l.
+Proof.
+  intros X l. induction l.
+    simpl. reflexivity.
+    destruct l.
+      simpl. reflexivity.
+      rewrite <- cons_without_last_element.
+      rewrite cons_app. rewrite last_element_cons.
+      rewrite <- IHl. reflexivity.
+Qed.
+
+Theorem rev_pal_eq': forall (X: Type) (l: list X),
+  l = rev l -> pal l.
+Proof. intros X l H.
+  destruct (rev l) as [|rh rt] eqn:Hrevl.
+    Case "rev l = []".
+      rewrite H. apply pal_empty.
+    Case "rev l = rh :: rt".
+      destruct l as [|lh lt].
+         SCase "l = []".
+           apply pal_empty.
+         SCase "l = lh :: lt".
+           assert (Hrevl' := Hrevl).
+           simpl in Hrevl.
+           rewrite <- H in Hrevl.
+           apply snoc_last_element in Hrevl.
+           simpl in Hrevl'.
+           apply snoc_without_last_element in Hrevl'.
+           rewrite <- H in Hrevl'.
+           assert (Hmiddle: rev (without_last_element lt) = without_last_element lt).
+             destruct lt.
+               simpl. reflexivity.
+               apply snoc_without_last_element with lh.
+               rewrite snoc_rev.
+               rewrite cons_without_last_element.
+               rewrite <- Hrevl'.
+               rewrite rev_involutive.
+               reflexivity.
+           assert (Hlt: lh::lt = (without_last_element (lh::lt)) ++ [lh]).
+             rewrite <- Hrevl.
+             rewrite <- without_last_element_rebuild. reflexivity.
+           rewrite Hlt.
+           destruct lt.
+             simpl.
+             apply pal_singleton.
+           rewrite <- cons_without_last_element in Hlt.
+           rewrite <- cons_without_last_element.
+           induction (lh::x::lt) as [|mh mt].
+             inversion H.
+           assert (Hlastmt: last_element mt = [lh]).
+             destruct mt.
+               simpl in Hlt. inversion Hlt. destruct lt.
+                 inversion H2.
+                 inversion H2.
+               rewrite last_element_cons in Hrevl. apply Hrevl.
+           apply IHmt in Hlastmt.
+           apply Hlastmt.
+           Abort. (* I had hoped this way might be shorter, but I
+                     can't persuade coq to take the inductive approach that I want *)
+
+
 
 (** [] *)
 
