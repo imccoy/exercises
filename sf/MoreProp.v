@@ -89,14 +89,16 @@ Inductive next_even (n:nat) : nat -> Prop :=
 (** Define an inductive binary relation [total_relation] that holds
     between every pair of natural numbers. *)
 
-(* FILL IN HERE *)
+Inductive total_relation : nat -> nat -> Prop :=
+  always: forall (n m:nat), total_relation n m.
 (** [] *)
 
 (** **** Exercise: 2 stars (empty_relation) *)
 (** Define an inductive binary relation [empty_relation] (on numbers)
     that never holds. *)
 
-(* FILL IN HERE *)
+Inductive empty_relation : nat -> nat -> Prop :=
+  never: forall (n m: nat), n = S m -> m = S n -> empty_relation n m.
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (le_exercises) *)
@@ -106,60 +108,173 @@ Inductive next_even (n:nat) : nat -> Prop :=
 
 Lemma le_trans : forall m n o, m <= n -> n <= o -> m <= o.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros m n o Hmn Hno.
+  generalize dependent m.
+  induction Hno.
+    intros m. intros Hmn. apply Hmn.
+    intros m'. intros Hmn.  apply le_S. apply IHHno. apply Hmn.
+Qed.
 
 Theorem O_le_n : forall n,
   0 <= n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n.
+  induction n as [|n'].
+    apply le_n.
+    apply le_S. apply IHn'.
+Qed.
 
 Theorem n_le_m__Sn_le_Sm : forall n m,
   n <= m -> S n <= S m.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros n m H.
+  induction H.
+    apply le_n.
+    apply le_S. apply IHle.
+Qed.
 
 
 Theorem Sn_le_Sm__n_le_m : forall n m,
   S n <= S m -> n <= m.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros n m H.
+  generalize dependent n.
+  induction m.
+    intros n H. inversion H. 
+      apply le_n.
+      inversion H1.
+    intros n H.
+      inversion H.
+        apply le_n.
+      apply le_S.
+      apply IHm. apply H1.
+Qed.
 
 
 Theorem le_plus_l : forall a b,
   a <= a + b.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros a b.
+  induction b.
+    rewrite plus_0_r. apply le_n.
+    rewrite plus_Sn_r. apply le_S. apply IHb.
+Qed.
+
+Theorem a_plus_c_le_b_plus_c__a_le_b : forall a b c,
+  a + c <= b + c ->  a <= b.
+Proof.
+  intros a b c. induction c.
+    intros H. rewrite plus_0_r in H. rewrite plus_0_r in H. apply H.
+  intros H. rewrite plus_Sn_r in H. rewrite plus_Sn_r in H.
+  apply Sn_le_Sm__n_le_m in H.
+  apply IHc. apply H.
+Qed.
+
+Theorem a_le_b__a_le_b_plus_c: forall a b c,
+  a <= b -> a <= b + c.
+Proof.
+  intros a b c H. induction c.
+    rewrite plus_0_r. apply H.
+    rewrite plus_Sn_r. apply le_S in IHc. apply IHc.
+Qed.
 
 Theorem plus_lt : forall n1 n2 m,
   n1 + n2 < m ->
   n1 < m /\ n2 < m.
 Proof. 
  unfold lt. 
- (* FILL IN HERE *) Admitted.
+ intros n1 n2 nm H.
+ destruct nm.
+   inversion H.
+ apply Sn_le_Sm__n_le_m in H.
+ apply conj.
+ apply n_le_m__Sn_le_Sm.
+ apply a_plus_c_le_b_plus_c__a_le_b with n2.
+ apply a_le_b__a_le_b_plus_c with (c:=n2) in H.
+ apply H.
+ apply n_le_m__Sn_le_Sm.
+ apply a_plus_c_le_b_plus_c__a_le_b with n1.
+ rewrite plus_comm in H.
+ apply a_le_b__a_le_b_plus_c with (c:=n1) in H.
+ apply H.
+Qed. 
 
 Theorem lt_S : forall n m,
   n < m ->
   n < S m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold lt.
+  intros n m H.
+  apply le_S in H. apply H.
+Qed.
 
+Theorem ble_nat_n_m_true__ble_nat_n_Sm_true : forall n m,
+  ble_nat n m = true -> ble_nat n (S m) = true.
+Proof.
+  intros n m H.
+  generalize dependent n.
+  induction m.
+    intros n H. destruct n.
+      simpl. reflexivity.
+      inversion H.
+    intros n H. destruct n.
+      simpl. reflexivity.
+      simpl. apply IHm. simpl in H. apply H.
+Qed.
+
+Theorem Sn_le_m__Sn_le_Sm: forall n m,
+  S n <= m -> S n <= S m.
+Proof.
+  intros n m H.
+  generalize dependent n.
+  induction m.
+    intros n H. inversion H.
+    intros n H. destruct n.
+      apply le_S. apply H.
+      apply n_le_m__Sn_le_Sm.
+      apply IHm. apply Sn_le_Sm__n_le_m in H. apply H.
+Qed.
+ 
 Theorem ble_nat_true : forall n m,
   ble_nat n m = true -> n <= m.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros n.
+  induction n.
+    intros m H. apply O_le_n.
+  intros m H.
+    generalize dependent n.
+    induction m.
+      intros n H0 H1.
+        simpl in H1. inversion H1.
+      intros n H0 H1. apply n_le_m__Sn_le_Sm. apply H0. simpl in H1. rewrite H1. reflexivity.
+Qed.
 
 Theorem le_ble_nat : forall n m,
   n <= m ->
   ble_nat n m = true.
 Proof.
   (* Hint: This may be easiest to prove by induction on [m]. *)
-  (* FILL IN HERE *) Admitted.
+  intros n m H.
+  generalize dependent n.
+  induction m as [|m'].
+    intros n H. destruct n.
+      simpl. reflexivity.
+      inversion H.
+    intros n H. destruct n.
+      simpl. reflexivity.
+      simpl. apply IHm'. apply Sn_le_Sm__n_le_m in H. apply H.
+Qed.
 
 Theorem ble_nat_true_trans : forall n m o,
   ble_nat n m = true -> ble_nat m o = true -> ble_nat n o = true.                               
 Proof.
   (* Hint: This theorem can be easily proved without using [induction]. *)
-  (* FILL IN HERE *) Admitted.
+  intros n m o Hnm Hmo.
+  apply le_ble_nat.
+  apply le_trans with (n:=m).
+  apply ble_nat_true in Hnm. apply Hnm.
+  apply ble_nat_true in Hmo. apply Hmo.
+Qed.
 
 
 (** **** Exercise: 3 stars (R_provability) *)
@@ -187,7 +302,45 @@ Inductive R : nat -> nat -> nat -> Prop :=
       would the set of provable propositions change?  Briefly (1
       sentence) explain your answer.
 
-(* FILL IN HERE *)
+R 1 1 2 is provable if
+    R 0 1 1 (by c2)
+ or R 1 0 1 (by c3)
+ or R 0 0 0 (by c4)
+
+R 0 0 0 is provable by C0, so R 1 1 2 is provable.
+
+
+--------------------------
+
+R 2 2 6 is provable if
+    R 1 2 5 by c2
+ or R 2 1 5 by c3
+ or R 1 1 4 by c4
+R 1 2 5 is provable if
+    R 0 2 4 by c2
+ or R 2 0 4 by c3
+ or R 0 1 2 by c4
+R 2 1 5 is provable if
+    R 1 1 4 by c2
+ or R 2 0 4 by c3
+ or R 1 0 4 by c4
+R 1 1 4 is provable if
+    R 0 1 3 by c2
+ or R 1 0 3 by c3
+ or R 0 0 2 by c4  (not an option)
+Anyway. It's not provable. The last digit decreases by the sum of the decrease
+in the first two digits. We need all three digits to go down to zero before
+we'll accept. But the decrease in the first digit will be two, and the decrease
+in the second digit will be two, which means a decrease in the last digit of
+four. But we need a decrease of six in the last digit, which isnae going to happen.
+
+
+Dropping c5 will make no difference. An R proposition can only be proved by c5
+after first having been proved to be in c5 by c1-c4, and there's no cases where
+c5 will let you get something to the (R 0 0 0) property but the other properties won't.
+
+Dropping c4 will make no difference. Anything that can be proved by c4
+can be proved by c2 and c3 in combination.
 []
 *)
 
@@ -198,7 +351,35 @@ Inductive R : nat -> nat -> nat -> Prop :=
     [n], and [o], and vice versa?
 *)
 
-(* FILL IN HERE *)
+Theorem R__plus: forall m n o,
+  R m n o -> m + n = o.
+Proof.
+  intros m n o H.
+  induction H.
+    simpl. reflexivity.
+    simpl. rewrite IHR. reflexivity.
+    rewrite plus_Sn_r. rewrite IHR. reflexivity.
+    simpl in IHR. rewrite plus_Sn_r in IHR. inversion IHR. reflexivity.
+    rewrite plus_comm. apply IHR.
+Qed.
+
+Theorem plus__R: forall m n o,
+  m + n = o -> R m n o.
+Proof.
+  intros m n o H.
+  generalize dependent n.
+  generalize dependent m.
+  induction o.
+    intros m n H. destruct m.
+      simpl in H. rewrite H. apply c1.
+      simpl in H. inversion H.
+    intros m. induction m.
+      intros n H. destruct n.
+        simpl in H. inversion H.
+        simpl in H. inversion H. apply c3. apply IHo. simpl. reflexivity.
+      intros n H. simpl in H. apply c2. apply IHo. inversion H. reflexivity.
+Qed.
+ 
 (** [] *)
 
 End R.
@@ -336,7 +517,7 @@ Definition natural_number_induction_valid : Prop :=
     equivalent to [Peven n] otherwise. *)
 
 Definition combine_odd_even (Podd Peven : nat -> Prop) : nat -> Prop :=
-  (* FILL IN HERE *) admit.
+  fun (n:nat) => (oddb n = false -> Peven n) /\ (oddb n = true -> Podd n).
 
 (** To test your definition, see whether you can prove the following
     facts: *)
@@ -347,7 +528,16 @@ Theorem combine_odd_even_intro :
     (oddb n = false -> Peven n) ->
     combine_odd_even Podd Peven n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros Podd Peven n H1 H2.
+  unfold combine_odd_even.
+  destruct (oddb n).
+    apply conj.
+    intros H. inversion H.
+    intros H. apply H1. reflexivity.
+    apply conj.
+    intros H. apply H2. reflexivity.
+    intros H. inversion H.
+Qed.
 
 Theorem combine_odd_even_elim_odd :
   forall (Podd Peven : nat -> Prop) (n : nat),
@@ -355,15 +545,23 @@ Theorem combine_odd_even_elim_odd :
     oddb n = true ->
     Podd n.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros Podd Peven n Hcombine Hodd.
+  unfold combine_odd_even in Hcombine.
+  apply Hcombine.
+  apply Hodd.
+Qed.
+ 
 Theorem combine_odd_even_elim_even :
   forall (Podd Peven : nat -> Prop) (n : nat),
     combine_odd_even Podd Peven n ->
     oddb n = false ->
     Peven n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros Podd Peven n Hcombine Hodd.
+  unfold combine_odd_even in Hcombine.
+  apply Hcombine.
+  apply Hodd.
+Qed.
 
 (** [] *)
 
@@ -380,15 +578,16 @@ Proof.
     [true_upto_n__true_everywhere] that makes
     [true_upto_n_example] work. *)
 
-(* 
-Fixpoint true_upto_n__true_everywhere
-(* FILL IN HERE *)
+Fixpoint true_upto_n__true_everywhere (n:nat) (p:nat->Prop) :=
+  match n with
+  | 0 => forall n, p n
+  | S n' => (p n) -> true_upto_n__true_everywhere n' p
+  end.
 
 Example true_upto_n_example :
     (true_upto_n__true_everywhere 3 (fun n => even n))
   = (even 3 -> even 2 -> even 1 -> forall m : nat, even m).
 Proof. reflexivity.  Qed.
-*)
 (** [] *)
 
 (* $Date: 2013-07-17 16:19:11 -0400 (Wed, 17 Jul 2013) $ *)
