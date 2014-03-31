@@ -183,10 +183,15 @@ Print eight_is_beautiful'''.
 Theorem six_is_beautiful :
   beautiful 6.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  apply b_sum with (n:=3) (m:=3).
+  apply b_3.
+  apply b_3.
+Qed.
 
 Definition six_is_beautiful' : beautiful 6 :=
-  (* FILL IN HERE *) admit.
+  (b_sum 3 3 b_3 b_3).
+Print six_is_beautiful.
+Print six_is_beautiful'.
 (** [] *)
 
 (** **** Exercise: 1 star (nine_is_beautiful) *)
@@ -195,10 +200,15 @@ Definition six_is_beautiful' : beautiful 6 :=
 Theorem nine_is_beautiful :
   beautiful 9.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  apply b_sum with (n:=3) (m:=6).
+  apply b_3.
+  apply b_sum with (n:=3) (m:=3).
+  apply b_3.
+  apply b_3.
+Qed.
 
 Definition nine_is_beautiful' : beautiful 9 :=
-  (* FILL IN HERE *) admit.
+  b_sum 3 6 b_3 (b_sum 3 3 b_3 b_3).
 (** [] *)
 
 
@@ -290,13 +300,26 @@ Definition beatiful_plus3'' : Prop :=
 
 Theorem b_times2: forall n, beautiful n -> beautiful (2*n).
 Proof.
-    (* FILL IN HERE *) Admitted.
+  intros n Hb.
+  simpl. rewrite plus_0_r.
+  apply b_sum. apply Hb. apply Hb.
+  Show Proof.
+Qed.
 (** [] *)
 
 (** Now write a corresponding proof object directly. *)
 
+Theorem b_times2_plus: forall n, beautiful (n+n) -> beautiful (2*n).
+Proof.
+  intros N Hb.
+  simpl. rewrite plus_0_r. apply Hb.
+  Show Proof.
+Qed.
+
 Definition b_times2': forall n, beautiful n -> beautiful (2*n) :=
-  (* FILL IN HERE *) admit.
+  fun (n : nat) => 
+    fun (H : beautiful n) =>
+      b_times2_plus n (b_sum n n H H).
 (** [] *)
 
 
@@ -306,7 +329,7 @@ Definition b_times2': forall n, beautiful n -> beautiful (2*n) :=
 (** Give a proof object corresponding to the theorem [gorgeous_plus13] from Prop.v *)
 
 Definition gorgeous_plus13_po: forall n, gorgeous n -> gorgeous (13+n):=
-   (* FILL IN HERE *) admit.
+   fun n => fun H => g_plus3 (10 + n) (g_plus5 (5+n) (g_plus5 n H)).
 (** [] *)
 
 
@@ -319,8 +342,8 @@ Theorem and_example :
   (beautiful 0) /\ (beautiful 3).
 Proof.
   apply conj.
-   (* Case "left". *)  apply b_0.
-   (* Case "right". *)  apply b_3.  Qed.
+   Case "left".  apply b_0.
+   Case "right".  apply b_3.  Qed.
 
 (** Let's take a look at the proof object for the above theorem. *)
 
@@ -383,7 +406,15 @@ we get: *)
 (** Construct a proof object demonstrating the following proposition. *)
 
 Definition conj_fact : forall P Q R, P /\ Q -> Q /\ R -> P /\ R :=
-  (* FILL IN HERE *) admit.
+  fun (P Q R : Prop) => 
+    fun (HPQ : P /\ Q) =>
+      fun (HQR : Q /\ R) =>
+        match HPQ with
+        | conj HP HQ =>
+          match HQR with
+          | conj HQ HR => conj P R HP HR
+          end
+        end.
 (** [] *)
 
 
@@ -398,7 +429,10 @@ Definition conj_fact : forall P Q R, P /\ Q -> Q /\ R -> P /\ R :=
 
 Definition beautiful_iff_gorgeous :
   forall n, beautiful n <-> gorgeous n :=
-  (* FILL IN HERE *) admit.
+  fun (n:nat) => conj (beautiful n -> gorgeous n)
+                      (gorgeous n -> beautiful n)
+                      (beautiful__gorgeous n)
+                      (gorgeous__beautiful n).
 (** [] *)
 
 
@@ -406,7 +440,14 @@ Definition beautiful_iff_gorgeous :
 (** Try to write down an explicit proof object for [or_commut] (without
     using [Print] to peek at the ones we already defined!). *)
 
-(* FILL IN HERE *)
+Definition or_commut :
+  forall (P Q:Prop), P \/ Q -> Q \/ P :=
+  fun (P Q:Prop) =>
+    fun (H:P \/ Q) =>
+      match H with
+      | or_introl HP => or_intror Q P HP
+      | or_intror HQ => or_introl Q P HQ
+      end.
 (** [] *)
 
 (** Recall that we model an existential for a property as a pair consisting of 
@@ -429,8 +470,10 @@ Definition snie : some_nat_is_even :=
 (** **** Exercise: 2 stars (ex_beautiful_Sn) *)
 (** Complete the definition of the following proof object: *)
 
+Print ex_intro.
+
 Definition p : ex nat (fun n => beautiful (S n)) :=
-(* FILL IN HERE *) admit.
+  ex_intro _ (fun n => beautiful (S n)) 2 b_3.
 (** [] *)
 
 
@@ -488,7 +531,6 @@ Proof.
   rewrite plus_comm with (n := b). 
   reflexivity. Qed.
 
-
 (** **** Exercise: 2 stars (trans_eq_example_redux) *)
 (** Redo the proof of the following theorem (from MoreCoq.v) using
 an [apply] of [trans_eq] but _not_ using a [with] clause. *)
@@ -498,7 +540,9 @@ Example trans_eq_example' : forall (a b c d e f : nat),
      [c;d] = [e;f] ->
      [a;b] = [e;f].
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros a b c d e f.
+  apply (trans_eq _ [a;b] [c;d]).
+Qed.
 (** [] *)
 
 
