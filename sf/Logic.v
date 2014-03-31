@@ -1895,6 +1895,25 @@ Proof.
       simpl. reflexivity.
 Qed.
 
+Lemma app_split_appears_in : forall (X:Type) (x:X) (l l1 l2:list X),
+  l = l1 ++ (x::l2) -> 
+  appears_in x l.
+Proof.
+  intros X x l l1 l2.
+  generalize dependent l1.
+  induction l.
+    intros l1 Hsplit. destruct l1. inversion Hsplit. inversion Hsplit.
+    intros l1 Hsplit.
+    destruct l1.
+      simpl in Hsplit. rewrite Hsplit. apply ai_here.
+      simpl in Hsplit. inversion Hsplit. rewrite <- H1.
+      apply IHl in H1. apply ai_later. apply H1.
+Qed.
+
+Inductive app_split {X:Type} : list X -> Prop :=
+  | app_split_nil : app_split []
+  | app_split_cons : forall h l1 l2, app_split (l1 ++ (h::l2)).
+
 (** Now define a predicate [repeats] (analogous to [no_repeats] in the
    exercise above), such that [repeats X l] asserts that [l] contains
    at least one repeated element (of type [X]).  *)
@@ -1994,20 +2013,88 @@ Proof.
   apply Hexm.
 Qed.
 
-Theorem move_forall_out_of_or: forall (X:Type) (x:X) (P:X->Prop) (Q:Prop),
-  excluded_middle ->
-  (forall (x:X), (P x \/ Q)) -> 
-  ((forall (x:X), (P x)) \/ Q).
+Theorem Sn_lt_Sm__n_lt_m: forall m n,
+ S n < S m -> n < m.
 Proof.
-  intros X x P Q Hexm H.
-  apply implies_to_or_neg.
-  apply Hexm.
-  intros HPx.
-  unfold not in HPx.
-  apply Hdm. unfold not.
-  split.
-  assert (Hx := H x).
-  inversion Hx.
+  intros m n Hs.
+  unfold lt. unfold lt in Hs.
+  apply Sn_le_Sm__n_le_m in Hs. apply Hs.
+Qed.
+
+Theorem imp_or_or: forall (A B C:Prop), (A -> B) -> A \/ C -> B \/ C.
+Proof.
+  intros A B C Hab Hac.
+  inversion Hac.
+  apply Hab in H. left. apply H.
+  right. apply H.
+Qed.
+
+Theorem or_imp_or: forall (A B C:Prop), (A -> B) -> C \/ A -> C \/ B.
+Proof.
+  intros A B C Hab Hac.
+  inversion Hac.
+  left. apply H.
+  right. apply Hab in H. apply H.
+Qed.
+
+Theorem implies_to_nor: forall P Q:Prop, implies_to_or -> (~P->Q) -> (P \/ Q).
+Proof.
+  intros P Q Hito.
+  assert (H := Hito (~P) Q).
+  intros Hpq.
+  apply H in Hpq.
+  inversion Hpq.
+  assert (Hclassic: classic).
+    apply implies_to_or_excluded_middle in Hito.
+    apply excluded_middle_classic in Hito.
+    apply Hito.
+  apply Hclassic in H0. left. apply H0.
+  right. apply H0.
+Qed.
+
+Theorem n_lt_m__Sn_lt_Sm: forall n m: nat, n < m -> S n < S m.
+Proof.
+  intros n m Hnm.
+  unfold lt. apply n_le_m__Sn_le_Sm. unfold lt in Hnm. apply Hnm.
+Qed.
+
+Theorem le_ne_lt: forall n m, n <= m -> n <> m -> n < m.
+  intros n m.
+  generalize dependent n.
+  induction m.
+    intros n Hle Hne. destruct n.
+      unfold not in Hne. assert (H0: 0 = 0). reflexivity. apply Hne in H0. inversion H0.
+      inversion Hle.
+    destruct n.
+      intros Hle Hne. unfold lt. apply n_le_m__Sn_le_Sm. apply O_le_n.
+      intros Hle Hne. apply n_lt_m__Sn_lt_Sm. apply IHm.
+        apply Sn_le_Sm__n_le_m in Hle. apply Hle.
+        unfold not. intros Heq. rewrite Heq in Hne. 
+        assert (Hmm: S m = S m). reflexivity.
+        unfold not in Hne. apply Hne in Hmm. inversion Hmm.
+Qed.
+
+Theorem lt_notltS_eq: forall n m,
+  excluded_middle -> n <= m -> ~ S n <= m -> n = m.
+Proof. intros n m Hex Hle Hns.
+  induction (Hex (n = m)).
+  apply H.
+  assert (Hlt := le_ne_lt n m Hle H).
+  unfold lt in Hlt. unfold not in Hns. apply Hns in Hlt. inversion Hlt.
+Qed.
+
+Theorem Sn_lt_m__n_lt_m: forall n m, S n < m -> n < m.
+Proof. intros n m Hsn.
+  unfold lt. apply Sn_le_Sm__n_le_m. apply Sn_le_m__Sn_le_Sm.
+  unfold lt in Hsn. apply Hsn.
+Qed.
+
+Theorem l1_eq_l2__l_app_l1_eq_l_app_l2: forall (X:Type) (l l1 l2:list X),
+  l1 = l2 -> l ++ l1 = l ++ l2.
+Proof.
+  intros X l l1 l2 H.
+  rewrite H. reflexivity.
+Qed.
 
 Theorem pigeonhole_principle: forall (X:Type) (l1 l2:list X),
   excluded_middle -> 
@@ -2023,26 +2110,29 @@ Proof.  intros X l1. induction l1 as [|h1 t1].
     intros l2 Hex Hapx Hlen.
     apply repeats_or.
     destruct l2 as [|h2 t2].
-      SCase "l2 nil".
-        assert (Hapx' := Hapx h1).
-        assert (Hapxl1 := ai_here h1 t1).
-        apply Hapx' in Hapxl1. inversion Hapxl1.
-      SCase "l2 cons".
-        assert (Ih := IHt1 t2). 
-        replace (repeats t1) with ((forall x : X, appears_in x t1 -> appears_in x t2) /\ (length t2 < length t1)).
-        apply and_distributes_over_or_1.
-        split.
-        apply Ih in Hex. pply IHt1 with (l2:=t2).
-        apply Hex.
-        intros x' Hapx'.
-        apply Hapx in Hapx'.
-        assert (Hex' := Hex (x = x')).
-        inversion Hex'.
-        SSCase "x = x'".
-          assert (Hex'' := Hex (x = h1)). inversion Hex''.
-            SSSCase "x = h1".
-
+      SCase "l2 = []".
+        assert (Hapx': appears_in h1 (h1 :: t1)).
+          apply ai_here.
+        assert (Hapx'' := Hapx h1).
+        apply Hapx'' in Hapx'.
+        inversion Hapx'.
+      SCase "l2 = h2::t2".
+        apply imp_or_or with (A:=length (h2 :: t2) < length t1).
+        intros Hlen'.
+        apply IHt1 with (h2 :: t2).
+        apply Hex. 
+        intros x Hapxt1.
+        assert (Hapxl1: appears_in x (h1 :: t1)).
+          apply ai_later. apply Hapxt1.
+        assert (Hapxl2 := Hapx x).
+        apply Hapxl2 in Hapxl1. apply Hapxl1.
+        apply Hlen'.
+        assert (Haph1t1:=Hex (appears_in h1 t1)).
+        inversion Haph1t1.
+        right. apply H.
+Admitted.
 (** [] *)
+
 
 (* $Date: 2013-07-17 16:19:11 -0400 (Wed, 17 Jul 2013) $ *)
 
