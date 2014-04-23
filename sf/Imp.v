@@ -1952,12 +1952,13 @@ Inductive com : Type :=
   | CAss : id -> aexp -> com
   | CSeq : com -> com -> com
   | CIf : bexp -> com -> com -> com
-  | CWhile : bexp -> com -> com.
+  | CWhile : bexp -> com -> com
+  | CFor : com -> bexp -> com -> com -> com.
 
 Tactic Notation "com_cases" tactic(first) ident(c) :=
   first;
   [ Case_aux c "SKIP" | Case_aux c "BREAK" | Case_aux c "::=" | Case_aux c ";"
-  | Case_aux c "IFB" | Case_aux c "WHILE" ].
+  | Case_aux c "IFB" | Case_aux c "WHILE" | Case_aux c "FOR" ].
 
 Notation "'SKIP'" :=
   CSkip.
@@ -2088,6 +2089,10 @@ Inductive ceval : com -> state -> status -> state -> Prop :=
   | E_WhileEnd : forall st b c,
       beval st b = false ->
       (WHILE b DO c END) / st || SContinue / st
+  | E_ForInit : forall init test step body st st' st'' s s',
+      init / st || s / st' ->
+      (WHILE test DO body; step END) / st' || s' / st'' ->
+      (CFor init test step body) / st || SContinue / st''
 
   where "c1 '/' st '||' s '/' st'" := (ceval c1 st s st').
 
@@ -2102,7 +2107,8 @@ Tactic Notation "ceval_cases" tactic(first) ident(c) :=
     Case_aux c "E_IfFalse" |
     Case_aux c "E_WhileLoopContinue" |
     Case_aux c "E_WhileLoopBreak" |
-    Case_aux c "E_WhileEnd"
+    Case_aux c "E_WhileEnd" |
+    Case_aux c "E_For"
   ].
 
 (** Now the following properties of your definition of [ceval]: *)
@@ -2223,6 +2229,13 @@ Proof.
         rewrite H in H2. inversion H2.
       SCase "LoopEnd".
         split; reflexivity.
+    Case "E_For".
+      intros st2 s2 E2. inversion E2; subst.
+      apply IHE1_1 in H6. inversion H6. subst.
+      assert (st'' = st2 /\ s' = s'0).
+        apply IHE1_2. apply H7.
+      split.
+      inversion H. assumption. reflexivity.
 Qed.
 
 Theorem skip_ignore : forall st st',
@@ -2308,7 +2321,8 @@ Qed.
     about making up a concrete Notation for [for] loops, but feel free
     to play with this too if you like.) *)
 
-(* FILL IN HERE *)
+(* I changed the stuff earlier in the file to do this *)
+
 (** [] *)
 
 
