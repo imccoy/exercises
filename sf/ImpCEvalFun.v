@@ -182,22 +182,40 @@ Definition test_ceval (st:state) (c:com) :=
    your solution satisfies the test that follows. *)
 
 Definition pup_to_n : com := 
-  (* FILL IN HERE *) admit.
+  Y ::= (ANum 0);;
+  WHILE (BNot (BLe (AId X) (ANum 0))) DO
+    Y ::= APlus (AId Y) (AId X) ;;
+    X ::= AMinus (AId X) (ANum 1)
+  END.
 
-(* 
 Example pup_to_n_1 : 
   test_ceval (update empty_state X 5) pup_to_n
   = Some (0, 15, 0).
 Proof. reflexivity. Qed.
-*)
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (peven) *)
 (** Write a [While] program that sets [Z] to [0] if [X] is even and
     sets [Z] to [1] otherwise.  Use [ceval_test] to test your
     program. *)
-
-(* FILL IN HERE *)
+Definition peven : com :=
+  Z ::= (ANum 0);;
+  WHILE (BNot (BLe (AId X) (ANum 0))) DO
+    X ::= AMinus (AId X) (ANum 1) ;;
+    IFB (BEq (AId Z) (ANum 0)) THEN
+      Z ::= (ANum 1)
+    ELSE
+      Z ::= (ANum 0)
+    FI
+  END.
+Example peven_1 : 
+  test_ceval (update empty_state X 5) peven
+  = Some (0, 0, 1).
+Proof. reflexivity. Qed.
+Example peven_2 : 
+  test_ceval (update empty_state X 8) peven
+  = Some (0, 0, 0).
+Proof. reflexivity. Qed.
 (** [] *)
 
 (* ################################################################ *)
@@ -269,9 +287,64 @@ Proof.
     defined value should look the same as for induction, except that
     there is no induction hypothesis.)  Make your proof communicate
     the main ideas to a human reader; do not simply transcribe the
-    steps of the formal proof.
+    steps of the formal proof. *)
 
-(* FILL IN HERE *)
+(* I am glad I am not submitting the following for marking. 
+
+  We want to prove that, if the computation evaluates from state st 
+    to state st' in some number of steps, then the computation reduces
+    state st to st'.
+
+   Call the number of steps i. We want to prove that, for all i,
+       given that ceval_step st c i = Some st' implies c / st || st'
+
+   We proceed by induction on i.
+
+   In the case where i = 0, we have an assumption that
+   ceval_step st c 0 = Some st', which is inconsistent, so this
+   case never happens.
+
+   In the case where i = S i', we have an assumption that st is evaluable
+   to st' in (S i') steps, and by induction that for all computations,
+   if it evaluates from state st to state st' in i' steps then it
+   reduces from state st to st'.
+
+   We consider all the possible computations c.
+   
+   SKIP and ::= are trivial, because they can't loop.
+
+   If c = c1 ;; c2, we consider the possible results of evaluating c1. 
+   When it terminates normally, we use the induction hypothesis in both
+   cases and are done. The case where it doesn't terminate normally is
+   inconsistent and doesn't need to be considered.
+
+   If c = IFB a THEN c1 ELSE c2 FI, then a can evaluate to either
+   true or false. When it evaluates to true, the command becomes c1 and
+   the induction hypothesis applies. When it evaluates to false, the
+   command becomes c2 and again the induction hypothesis applies.
+
+   If c = WHILE b DO c1 END, b can evaluate to either true or false.
+   
+   First consider the case where b is true. We know that evaluating c1
+   can either succeed, producing a state s, or fail. When it fails,
+   our assumption that some state exists no longer holds, so we don't
+   need to consider the case further. When it succeeds, we look at what
+   needs to be true for the while loop to reduce the way we want it to.
+   We need the test to evaluate to true, which we have as an assumption.
+   We need executing c1 to evaluate to s, which is true by the induction
+   hypothesis and the case that we're considering. And finally we need
+   the loop to reduce s to st', which follows from the induction hypothesis
+   and our assumption that some state exists.
+
+   Next consider the case where b is false. The ceval_step term in our
+   assumption is equal to Some st, so we know st and st' are equal. Therefore
+   we need to prove that the while loop reduces a state st to the same state
+   st, that is, that the while loop is a no-op in terms of reduction when
+   the test is false. This follows directly from the test.
+
+
+
+
 []
 *)
 
@@ -328,7 +401,37 @@ Theorem ceval__ceval_step: forall c st st',
 Proof. 
   intros c st st' Hce.
   ceval_cases (induction Hce) Case.
-  (* FILL IN HERE *) Admitted.
+  Case "E_Skip".
+    exists 1. simpl. reflexivity.
+  Case "E_Ass".
+    exists 1. simpl. rewrite H. reflexivity.
+  Case "E_Seq".
+    inversion IHHce1.
+    inversion IHHce2.
+    exists (S (x + x0)).
+    simpl.
+    apply ceval_step_more with (i2:=x+x0) in H.
+    apply ceval_step_more with (i2:=x+x0) in H0.
+    rewrite H. rewrite H0. reflexivity.
+    apply le_plus_r. apply le_plus_l.
+  Case "E_IfTrue".
+    inversion IHHce. exists (S x).
+    simpl. rewrite H. apply H0.
+  Case "E_IfFalse".
+    inversion IHHce. exists (S x).
+    simpl. rewrite H. apply H0.
+  Case "E_WhileEnd".
+    exists 1. simpl. rewrite H. reflexivity.
+  Case "E_WhileLoop".
+    inversion IHHce1.
+    inversion IHHce2.
+    exists (S (x + x0)).
+    simpl. rewrite H.
+    apply ceval_step_more with (i2:=x+x0) in H0.
+    apply ceval_step_more with (i2:=x+x0) in H1.
+    rewrite H0. rewrite H1. reflexivity.
+      apply le_plus_r. apply le_plus_l.
+Qed.
 (** [] *)
 
 Theorem ceval_and_ceval_step_coincide: forall c st st',
