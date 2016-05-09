@@ -182,7 +182,17 @@ Theorem skip_right: forall c,
     (c;; SKIP) 
     c.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros c st st'.
+  split.
+  Case "->".
+    intros H.
+    inversion H; subst.
+    inversion H5. subst.
+    assumption.
+  Case "<-".
+    intros H.
+    apply E_Seq with st'. assumption.
+    apply E_Skip. Qed.
 (** [] *)
 
 (** Similarly, here is a simple transformations that simplifies [IFB]
@@ -268,7 +278,16 @@ Theorem IFB_false: forall b c1 c2,
     (IFB b THEN c1 ELSE c2 FI) 
     c2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c1 c2 Heqf.
+  split.
+  Case "->".
+    intros H. inversion H. subst.
+    rewrite Heqf in H5. simpl in H5. inversion H5. 
+    subst. assumption.
+  Case "<-".
+    intros H. apply E_IfFalse. rewrite Heqf. simpl. reflexivity.
+    apply H. Qed.
+
 (** [] *)
 
 (** **** Exercise: 3 stars (swap_if_branches) *)
@@ -280,7 +299,24 @@ Theorem swap_if_branches: forall b e1 e2,
     (IFB b THEN e1 ELSE e2 FI)
     (IFB BNot b THEN e2 ELSE e1 FI).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b e1 e2 st st'. split.
+  Case "->".
+    intros H. inversion H; subst.
+    SCase "beval st b = true".
+      apply E_IfFalse. simpl. rewrite H5. reflexivity.
+      apply H6.
+    SCase "beval st b = false".
+      apply E_IfTrue. simpl. rewrite H5. reflexivity.
+      apply H6.
+  Case "<-".
+    intros H. inversion H; subst.
+    SCase "beval st (BNot b) = true".
+      apply E_IfFalse. simpl in H5. destruct (beval st b). simpl in H5. inversion H5. reflexivity.
+      assumption.
+    SCase "beval st (BNot b) = false".
+      apply E_IfTrue. 
+      simpl in H5. destruct (beval st b). reflexivity. inversion H5.
+      assumption. Qed.
 (** [] *)
 
 (** For [WHILE] loops, we can give a similar pair of theorems.  A loop
@@ -377,7 +413,17 @@ Theorem WHILE_true: forall b c,
        (WHILE b DO c END)
        (WHILE BTrue DO SKIP END).
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros b c Hbeq. split.
+  Case "->". 
+    intros H. apply WHILE_true_nonterm with (c:=c) (st:=st) (st':=st') in Hbeq.
+    apply Hbeq in H. inversion H.
+  Case "<-".
+    intros H.
+    remember (WHILE BTrue DO SKIP END) as loopdef eqn:Heqloopdef.
+    induction H; inversion Heqloopdef.
+      subst. simpl in H. inversion H.
+      inversion Heqloopdef. subst. inversion H0. subst. 
+      apply IHceval2. reflexivity. Qed.
 (** [] *)
 
 Theorem loop_unrolling: forall b c,
@@ -408,7 +454,15 @@ Proof.
 Theorem seq_assoc : forall c1 c2 c3,
   cequiv ((c1;;c2);;c3) (c1;;(c2;;c3)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros c1 c2 c3 st st'. split; intros Hseq.
+  inversion Hseq. inversion H1. subst. 
+    apply E_Seq with (st':=st'1). apply H7.
+    apply E_Seq with (st':=st'0). apply H10. apply H4.
+
+  inversion Hseq. inversion H4. subst.
+    apply E_Seq with (st':=st'1).
+    apply E_Seq with (st':=st'0).
+    apply H1. apply H7. apply H10. Qed.
 (** [] *)
 
 (** ** The Functional Equivalence Axiom *)
@@ -504,7 +558,21 @@ Theorem assign_aequiv : forall X e,
   aequiv (AId X) e -> 
   cequiv SKIP (X ::= e).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X e Haeq st st'. split; intros H.
+  Case "->".
+    assert (st'=update st X (aeval st e)).
+      inversion H; subst. unfold aequiv in Haeq. rewrite <- Haeq.
+      simpl. apply functional_extensionality. intro. rewrite update_same; reflexivity.
+    rewrite H0.  
+    apply E_Ass. reflexivity.
+  Case "<-".
+    assert (st'=st).
+      inversion H. subst. simpl.
+      rewrite <- Haeq. simpl.
+      apply functional_extensionality. intros X'. simpl.
+      apply update_same. reflexivity.
+    rewrite H0. apply E_Skip. Qed.
+
 (** [] *)
 
 (* ####################################################### *)
@@ -697,7 +765,16 @@ Theorem CSeq_congruence : forall c1 c1' c2 c2',
   cequiv c1 c1' -> cequiv c2 c2' ->
   cequiv (c1;;c2) (c1';;c2').
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros c1 c1' c2 c2' Hc1 Hc2 st st'.
+  split; intros Hseq.
+  Case "->".
+    inversion Hseq. subst. apply E_Seq with (st':=st'0).
+    unfold cequiv in Hc1. rewrite <- Hc1. assumption.
+    unfold cequiv in Hc2. rewrite <- Hc2. assumption.
+  Case "<-".
+    inversion Hseq. subst. apply E_Seq with (st':=st'0).
+    unfold cequiv in Hc1. rewrite Hc1. assumption.
+    unfold cequiv in Hc2. rewrite Hc2. assumption. Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (CIf_congruence) *)
@@ -705,7 +782,27 @@ Theorem CIf_congruence : forall b b' c1 c1' c2 c2',
   bequiv b b' -> cequiv c1 c1' -> cequiv c2 c2' ->
   cequiv (IFB b THEN c1 ELSE c2 FI) (IFB b' THEN c1' ELSE c2' FI).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b b' c1 c1' c2 c2' Hb Hc1 Hc2 st st'. split; intros Hif.
+  Case "->".
+    inversion Hif; subst.
+    SCase "IfTrue".
+      apply E_IfTrue.
+      unfold bequiv in Hb. rewrite Hb in H4. assumption.
+      unfold cequiv in Hc1. rewrite Hc1 in H5. assumption.
+    SCase "IfFalse".  
+      apply E_IfFalse.
+      unfold bequiv in Hb. rewrite Hb in H4. assumption.
+      unfold cequiv in Hc2. rewrite Hc2 in H5. assumption.
+  Case "<-".
+    inversion Hif; subst.
+    SCase "IfTrue".
+      apply E_IfTrue.
+      unfold bequiv in Hb. rewrite <- Hb in H4. assumption.
+      unfold cequiv in Hc1. rewrite <- Hc1 in H5. assumption.
+    SCase "IfFalse".
+      apply E_IfFalse.
+      unfold bequiv in Hb. rewrite <- Hb in H4. assumption.
+      unfold cequiv in Hc2. rewrite <- Hc2 in H5. assumption. Qed.
 (** [] *)
 
 (** For example, here are two equivalent programs and a proof of their
@@ -1043,7 +1140,19 @@ Proof.
          become constants after folding *)
       simpl. destruct (beq_nat n n0); reflexivity.
   Case "BLe". 
-    (* FILL IN HERE *) admit.
+    simpl.
+    remember (fold_constants_aexp a) as a'.
+    remember (fold_constants_aexp a0) as a0'.
+    replace (aeval st a) with (aeval st a').
+    replace (aeval st a0) with (aeval st a0').
+    destruct a'. destruct a0'; simpl; try (reflexivity).
+      destruct (ble_nat n n0); reflexivity.
+      simpl. reflexivity.
+      simpl. reflexivity.
+      simpl. reflexivity.
+      simpl. reflexivity.
+    rewrite Heqa0'. assert (atrans_sound fold_constants_aexp). apply fold_constants_aexp_sound. unfold atrans_sound in H. unfold aequiv in H. symmetry. apply H.
+    rewrite Heqa'. assert (atrans_sound fold_constants_aexp). apply fold_constants_aexp_sound. unfold atrans_sound in H. unfold aequiv in H. symmetry. apply H.
   Case "BNot". 
     simpl. remember (fold_constants_bexp b) as b' eqn:Heqb'. 
     rewrite IHb.
@@ -1081,7 +1190,9 @@ Proof.
       apply trans_cequiv with c2; try assumption.
       apply IFB_false; assumption.
   Case "WHILE".
-    (* FILL IN HERE *) Admitted.
+    remember (fold_constants_bexp b).
+    destruct (fold_constants_bexp b) eqn:Hcon; rewrite Heqb0; try (apply WHILE_true); try (apply WHILE_false); rewrite <- Hcon; try (apply CWhile_congruence); try (apply IHc); apply fold_constants_bexp_sound.
+  Qed.
 (** [] *)
 
 (* ########################################################## *)
@@ -1123,7 +1234,93 @@ Proof.
    - Prove that the optimizer is sound.  (This part should be _very_
      easy.)  *)
 
-(* FILL IN HERE *)
+Fixpoint optimize_0plus_aexp (e:aexp) : aexp :=
+  match e with
+  | ANum n => ANum n
+  | AId i => AId i
+  | APlus (ANum 0) exp => optimize_0plus_aexp exp
+  | APlus a1 a2 => APlus (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  | AMinus a1 a2 => AMinus (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  | AMult a1 a2 => AMult (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  end.
+
+Fixpoint optimize_0plus_bexp (e:bexp) : bexp :=
+  match e with
+  | BTrue => BTrue
+  | BFalse => BFalse
+  | BEq a1 a2 => BEq (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  | BLe a1 a2 => BLe (optimize_0plus_aexp a1) (optimize_0plus_aexp a2)
+  | BNot b1 => BNot (optimize_0plus_bexp b1)
+  | BAnd b1 b2 => BAnd (optimize_0plus_bexp b1) (optimize_0plus_bexp b2)
+  end.
+
+Fixpoint optimize_0plus_com (c:com) : com :=
+  match c with
+  | SKIP => SKIP
+  | i ::= a => CAss i (optimize_0plus_aexp a)
+  | c1 ;; c2 => (optimize_0plus_com c1) ;; (optimize_0plus_com c2)
+  | IFB b THEN c1 ELSE c2 FI =>
+    IFB (optimize_0plus_bexp b) THEN (optimize_0plus_com c1) ELSE (optimize_0plus_com c2) FI
+  | WHILE b DO c END =>
+    WHILE (optimize_0plus_bexp b) DO (optimize_0plus_com c) END
+  end.    
+
+Theorem optimize_0plus_aexp_sound :
+  atrans_sound optimize_0plus_aexp.
+Proof.
+  unfold atrans_sound. intros a. unfold aequiv. intros st.
+  aexp_cases (induction a) Case.
+    Case "ANum". reflexivity. Case "AId". reflexivity.
+    Case "APlus". destruct a1 eqn:Ha1.
+      destruct n eqn:Hn.
+        simpl. rewrite IHa2. reflexivity.
+	simpl. rewrite IHa2. reflexivity.
+      simpl. rewrite IHa2. reflexivity.
+      simpl. simpl in IHa1. rewrite IHa1. rewrite IHa2. reflexivity.
+      simpl. simpl in IHa1. rewrite IHa1. rewrite IHa2. reflexivity.
+      simpl. simpl in IHa1. rewrite IHa1. rewrite IHa2. reflexivity.
+    Case "AMinus". simpl. rewrite IHa1. rewrite IHa2. reflexivity. 
+    Case "AMult". simpl. rewrite IHa1. rewrite IHa2. reflexivity. Qed.
+
+Theorem optimize_0plus_bexp_sound :
+  btrans_sound optimize_0plus_bexp.
+Proof.
+  unfold btrans_sound. intros b. unfold bequiv. intros st.
+  bexp_cases (induction b) Case.
+  Case "BTrue". simpl. reflexivity.
+  Case "BFalse". simpl. reflexivity.
+  Case "BEq". simpl. rewrite <- ?optimize_0plus_aexp_sound. reflexivity.
+  Case "BLe". simpl. rewrite <- ?optimize_0plus_aexp_sound. reflexivity.
+  Case "BNot". simpl. rewrite IHb. reflexivity.
+  Case "BAnd". simpl. rewrite IHb1. rewrite IHb2. reflexivity.
+Qed.
+
+Theorem optimize_0plus_com_sound :
+  ctrans_sound optimize_0plus_com.
+Proof.  
+  unfold ctrans_sound. intros c.
+  com_cases (induction c) Case; simpl.
+  Case "SKIP". apply refl_cequiv.
+  Case "::=". apply CAss_congruence. apply optimize_0plus_aexp_sound.
+  Case ";;". apply CSeq_congruence. apply IHc1. apply IHc2.
+  Case "IFB". apply CIf_congruence. apply optimize_0plus_bexp_sound. apply IHc1. apply IHc2. 
+  Case "WHILE". apply CWhile_congruence. apply optimize_0plus_bexp_sound. apply IHc.
+Qed.
+
+Definition optimize_0plus_fold_constants_com (c:com) : com :=
+  optimize_0plus_com (fold_constants_com c).
+
+
+Theorem optimize_0plus_fold_constantscom_sound :
+  ctrans_sound optimize_0plus_fold_constants_com.
+Proof.
+  unfold optimize_0plus_fold_constants_com.
+  unfold ctrans_sound.
+  intros c.
+  apply trans_cequiv with (c2:=(fold_constants_com c)).
+  apply fold_constants_com_sound.
+  apply optimize_0plus_com_sound.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -1264,12 +1461,66 @@ Lemma aeval_weakening : forall i st a ni,
   var_not_used_in_aexp i a ->
   aeval (update st i ni) a = aeval st a.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros i st a ni HVNU.
+  aexp_cases (induction a) Case.
+  Case "ANum". simpl. reflexivity.
+  Case "AId". simpl. unfold update. inversion HVNU. apply neq_id. apply H0.
+  Case "APlus". simpl. rewrite IHa1. rewrite IHa2. reflexivity.
+    inversion HVNU. apply H2.
+    inversion HVNU. apply H1.
+  Case "AMinus". simpl. rewrite IHa1. rewrite IHa2. reflexivity.
+    inversion HVNU. apply H2. 
+    inversion HVNU. assumption.
+  Case "AMult". simpl. rewrite IHa1. rewrite IHa2. reflexivity.  
+    inversion HVNU. assumption.
+    inversion HVNU. assumption.
+Qed.
 
 (** Using [var_not_used_in_aexp], formalize and prove a correct verson
     of [subst_equiv_property]. *)
 
-(* FILL IN HERE *)
+Theorem aeval_subst : forall st i1 a1 a2,
+  var_not_used_in_aexp i1 a1 ->
+  st i1 = aeval st a1 ->
+  aeval st (subst_aexp i1 a1 a2) = aeval st a2.
+Proof.
+  induction a2; intros HVNU Hi1; try (simpl; rewrite IHa2_1; try assumption; rewrite IHa2_2; try assumption; reflexivity).
+  Case "Num". simpl. reflexivity.
+  Case "Id". simpl.
+    destruct (eq_id_dec i1 i).
+    rewrite e in Hi1. rewrite Hi1. reflexivity.
+    simpl. reflexivity.
+Qed.
+
+Theorem better_subst_equiv_property : forall i1 i2 a1 a2,
+  var_not_used_in_aexp i1 a1 ->
+  cequiv (i1 ::= a1;; i2 ::= a2)
+         (i1 ::= a1;; i2 ::= subst_aexp i1 a1 a2).
+Proof.
+  intros i1 i2 a1 a2 HVNU.
+
+  split; intros H.
+  Case "->".
+    inversion H. apply E_Seq with (st':=st'0).
+    apply H2. inversion H5. apply E_Ass. inversion H2.
+    rewrite <- H10. rewrite H14.
+    apply aeval_subst. apply HVNU.
+    rewrite <- H14.
+    replace (update st i1 n0 i1) with n0.
+    rewrite aeval_weakening. rewrite H15. reflexivity.
+    apply HVNU.
+    unfold update. rewrite eq_id. reflexivity.
+  Case "<-".
+    inversion H. apply E_Seq with (st':=st'0).
+    apply H2.
+    inversion H5. apply E_Ass.
+    rewrite <- H10. symmetry. apply aeval_subst.
+    apply HVNU. 
+    inversion H2.
+    rewrite aeval_weakening.
+    unfold update. rewrite eq_id. rewrite H15. reflexivity. apply HVNU.
+Qed.        
+
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (inequiv_exercise) *)
@@ -1278,7 +1529,18 @@ Proof.
 Theorem inequiv_exercise: 
   ~ cequiv (WHILE BTrue DO SKIP END) SKIP.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros H.
+  unfold cequiv in H.
+  remember empty_state as st.
+  remember empty_state as st'.
+  remember (H st st') as Heq.
+  inversion Heq.
+  assert (HWhileNonterm: ~(WHILE BTrue DO SKIP END) / st || st').
+    apply WHILE_true_nonterm. apply refl_bequiv.
+  assert (Hskip: SKIP / st || st'). subst. apply E_Skip.
+  apply H1 in Hskip. apply HWhileNonterm in Hskip. assumption.
+Qed.  
+
 (** [] *)
 
 (** * Extended exercise: Non-deterministic Imp *)
