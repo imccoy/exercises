@@ -2225,7 +2225,7 @@ Theorem swap_noninterfering_assignments': forall l1 l2 a1 a2,
     (l1 ::= a1;; l2 ::= a2) / st || st' ->
     (l2 ::= a2;; l1 ::= a1) / st || st'.
 Proof.
-  intros l1 l2 a1 a2 Hids Hvnul1 Hvnul2 st st' HcodeA
+  intros l1 l2 a1 a2 Hids Hvnul1 Hvnul2 st st' Hcode.
   inversion Hcode. 
   inversion H1. inversion H4. subst.
   replace (update (update st l1 (aeval st a1)) l2 (aeval (update st l1 (aeval st a1)) a2)) with (update (update st l2 (aeval st a2)) l1 (aeval (update st l2 (aeval st a2)) a1)).
