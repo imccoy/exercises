@@ -203,15 +203,15 @@ These decorations were constructed as follows:
 (** Fill in valid decorations for the following program:
    {{ True }}
   IFB X <= Y THEN
-      {{                         }} ->>
-      {{                         }}
+      {{ True /\ X <= Y          }} ->>
+      {{ Y = X + (Y - X)         }}
     Z ::= Y - X
-      {{                         }}
+      {{ Y = X + Z               }}
   ELSE
-      {{                         }} ->>
-      {{                         }}
+      {{ True /\ ~(X <= Y)       }} ->>
+      {{ X + Z = X + Z          }}
     Y ::= X + Z
-      {{                         }}
+      {{ Y = X + Z               }}
   FI
     {{ Y = X + Z }}
 *)
@@ -504,7 +504,23 @@ Proof.
       {{ Y = m }}
     Write an informal decorated program showing that this is correct. *)
 
-(* FILL IN HERE *)
+(*
+      {{ X = m }}
+    Y ::= 0;
+      {{ X = m /\ Y = 0 }}
+      {{ X + Y = m }}
+    WHILE X <> 0 DO
+      { X + Y = m /\ X <> 0 }
+      {{ (X-1) + (Y+1) = m }}
+      X ::= X - 1;
+      {{ X + (Y+1) = m }}
+      Y ::= Y + 1;
+      { X + Y = m }
+    END
+      { X + Y = m /\ X = 0 }
+      {{ Y = m }}
+ *)
+
 (** [] *)
 
 (* ####################################################### *)
@@ -524,7 +540,20 @@ Proof.
     specification of [add_slowly]; then (informally) decorate the
     program accordingly. *)
 
-(* FILL IN HERE *)
+(*
+       {{ Z = m /\ X = n }}
+  WHILE X <> 0 DO
+       {{ Z + X = m + n /\ X <> 0 }}
+       {{ (Z+1) + (X-1) = m + n }}
+     Z ::= Z + 1;
+       {{ Z + (X-1) = m + n }}
+     X ::= X - 1
+       {{ Z + X = m + n }}
+  END
+       {{ Z + X = m + n /\ X = 0 }}
+       {{ Z = m + n /\ X = 0 }}
+
+ *)
 (** [] *)
 
 (* ####################################################### *)
@@ -596,6 +625,18 @@ Proof.
     apply ex_falso_quodlibet. apply H. omega.
 Qed.
 
+Lemma le_ble_true : forall n m, 
+  n <= m -> 
+  ble_nat n m = true.
+Proof.
+  intros n.
+  induction n; intros m Hle.
+    reflexivity.
+    assert (n <= pred m).  destruct m. inversion Hle. simpl. apply le_S_n. assumption.
+    rewrite <- IHn with (m:=pred m). simpl. destruct m. inversion Hle. simpl. reflexivity.
+    assumption.
+Qed.
+
 Theorem parity_correct : forall m,
     {{ fun st => st X = m }}
   WHILE BLe (ANum 2) (AId X) DO
@@ -603,7 +644,22 @@ Theorem parity_correct : forall m,
   END
     {{ fun st => st X = parity m }}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros m.
+  apply hoare_consequence_post with (Q':=(fun (st : state) => (parity (st X) = parity m) /\ ~ bassn (BLe (ANum 2) (AId X)) st)).
+  eapply hoare_consequence_pre.  apply hoare_while.
+  eapply hoare_consequence_pre.  apply hoare_asgn.
+  unfold assn_sub. intros st Hpre.
+    simpl. unfold update. simpl. inversion Hpre. rewrite parity_ge_2. assumption.
+    unfold bassn in H. unfold beval in H. apply ble_nat_true. simpl in H. assumption.
+  intros st Hpre. rewrite Hpre. reflexivity.
+  intros st Hpre.
+  inversion Hpre.
+  rewrite parity_lt_2 in H. assumption.
+  intros Hcontra. apply H0. unfold bassn. unfold beval.
+    replace (aeval st (ANum 2)) with 2. replace (aeval st (AId X)) with (st X).
+    induction (st X). inversion Hcontra.
+    apply le_ble_true. assumption. reflexivity. reflexivity.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -759,18 +815,18 @@ Proof.
 
     Fill in the blanks in following decorated program:
     {{ X = m }} ->>
-    {{                                      }}
+    {{ X! = m!                               }}
   Y ::= 1;
-    {{                                      }}
+    {{ m! = Y * X!                           }}
   WHILE X <> 0
-  DO   {{                                      }} ->>
-       {{                                      }}
+  DO   {{ m! = Y * X! /\ X <> 0                }} ->>
+       {{ m! = Y * X * (X-1)!                  }}
      Y ::= Y * X;
-       {{                                      }}
+       {{ m! = Y * (X-1)!                      }}
      X ::= X - 1
-       {{                                      }}
+       {{ m! = Y * X!                          }}
   END
-    {{                                      }} ->>
+    {{ m! = Y * X!        /\ X = 0             }} ->>
     {{ Y = m! }}
 *)
 
@@ -798,20 +854,21 @@ Proof.
   X ::= a;
   {{                       }}
   Y ::= b;
-  {{                       }}
+  {{ min a b = min X Y     }}
   Z ::= 0;
-  {{                       }}
+  {{ min a b = Z + min X Y }}
   WHILE (X <> 0 /\ Y <> 0) DO
-  {{                                     }} ->>
-  {{                                }}
+  {{ min a b = Z + min X Y                   }} ->>
+  {{ min a b = Z + 1 + min X Y - 1           }} ->>
+  {{ min a b = (Z + 1) + min (X - 1) (Y - 1) }}
   X := X - 1;
-  {{                            }}
+  {{ min a b = (Z + 1) + min X (Y - 1) }}
   Y := Y - 1;
-  {{                        }}
+  {{ min a b = (Z + 1) + min X Y }}
   Z := Z + 1;
-  {{                       }}
+  {{ min a b = Z + min X Y  }}
   END
-  {{                            }} ->>
+  {{ (min a b = Z + min X Y) /\ (X = 0 \/ Y = 0) }} ->>
   {{ Z = min a b }}
 *)
 

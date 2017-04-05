@@ -69,29 +69,6 @@ type reflect =
 
 val iff_reflect : bool -> reflect
 
-module type TotalOrder' = 
- sig 
-  type t 
- end
-
-module MakeOrderTac : 
- functor (O:TotalOrder') ->
- sig 
-  
- end
-
-module MaxLogicalProperties : 
- functor (O:TotalOrder') ->
- functor (M:sig 
-  val max : O.t -> O.t -> O.t
- end) ->
- sig 
-  module Private_Tac : 
-   sig 
-    
-   end
- end
-
 module Pos : 
  sig 
   type t = positive
@@ -373,27 +350,6 @@ module Coq_Pos :
     
    end
   
-  module Private_Rev : 
-   sig 
-    module ORev : 
-     sig 
-      type t = positive
-     end
-    
-    module MRev : 
-     sig 
-      val max : positive -> positive -> positive
-     end
-    
-    module MPRev : 
-     sig 
-      module Private_Tac : 
-       sig 
-        
-       end
-     end
-   end
-  
   module Private_Dec : 
    sig 
     val max_case_strong :
@@ -553,9 +509,9 @@ module N :
   
   module Private_OrderTac : 
    sig 
-    module Elts : 
+    module IsTotal : 
      sig 
-      type t = n
+      
      end
     
     module Tac : 
@@ -600,27 +556,6 @@ module N :
   module Private_Tac : 
    sig 
     
-   end
-  
-  module Private_Rev : 
-   sig 
-    module ORev : 
-     sig 
-      type t = n
-     end
-    
-    module MRev : 
-     sig 
-      val max : n -> n -> n
-     end
-    
-    module MPRev : 
-     sig 
-      module Private_Tac : 
-       sig 
-        
-       end
-     end
    end
   
   module Private_Dec : 
