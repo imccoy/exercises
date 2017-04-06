@@ -61,8 +61,7 @@ infixl 4 <*>
   (a -> b)
   -> f a
   -> f b
-(<$>) =
-  error "todo: Course.Applicative#(<$>)"
+(<$>) = (<*>) . pure
 
 -- | Insert into Id.
 --
@@ -74,14 +73,12 @@ instance Applicative Id where
   pure ::
     a
     -> Id a
-  pure =
-    error "todo: Course.Applicative pure#instance Id"
+  pure = Id
   (<*>) :: 
     Id (a -> b)
     -> Id a
     -> Id b
-  (<*>) =
-    error "todo: Course.Applicative (<*>)#instance Id"
+  (<*>) (Id f) (Id a) = Id (f a)
 
 -- | Insert into a List.
 --
@@ -93,14 +90,12 @@ instance Applicative List where
   pure ::
     a
     -> List a
-  pure =
-    error "todo: Course.Applicative pure#instance List"
+  pure = (:. Nil)
   (<*>) ::
     List (a -> b)
     -> List a
     -> List b
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance List"
+  (<*>) fs as = flatMap (\f -> map (\a -> f a) as) fs
 
 -- | Insert into an Optional.
 --
@@ -119,13 +114,14 @@ instance Applicative Optional where
     a
     -> Optional a
   pure =
-    error "todo: Course.Applicative pure#instance Optional"
+    Full
   (<*>) ::
     Optional (a -> b)
     -> Optional a
     -> Optional b
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance Optional"
+  Empty <*> _ = Empty
+  (Full f) <*> a = mapOptional f a
+    
 
 -- | Insert into a constant function.
 --
@@ -150,13 +146,15 @@ instance Applicative ((->) t) where
     a
     -> ((->) t a)
   pure =
-    error "todo: Course.Applicative pure#((->) t)"
+    const
   (<*>) ::
     ((->) t (a -> b))
     -> ((->) t a)
     -> ((->) t b)
-  (<*>) =
-    error "todo: Course.Apply (<*>)#instance ((->) t)"
+  tf <*> ta = \t -> let f = tf t
+                        a = ta t
+                     in f a
+    
 
 
 -- | Apply a binary function in the environment.
@@ -184,8 +182,9 @@ lift2 ::
   -> f a
   -> f b
   -> f c
-lift2 =
-  error "todo: Course.Applicative#lift2"
+lift2 fabc fa fb = let ffbc = fabc <$> fa
+                    in ffbc <*> fb
+  
 
 -- | Apply a ternary function in the environment.
 --
@@ -216,8 +215,7 @@ lift3 ::
   -> f b
   -> f c
   -> f d
-lift3 =
-  error "todo: Course.Applicative#lift3"
+lift3 f a b c = f <$> a <*> b <*> c
 
 -- | Apply a quaternary function in the environment.
 --
@@ -249,8 +247,7 @@ lift4 ::
   -> f c
   -> f d
   -> f e
-lift4 =
-  error "todo: Course.Applicative#lift4"
+lift4 f a b c d = f <$> a <*> b <*> c <*> d
 
 -- | Apply, discarding the value of the first argument.
 -- Pronounced, right apply.
@@ -275,8 +272,7 @@ lift4 =
   f a
   -> f b
   -> f b
-(*>) =
-  error "todo: Course.Applicative#(*>)"
+(*>) fa fb = (pure const <*> fb) <*> fa
 
 -- | Apply, discarding the value of the second argument.
 -- Pronounced, left apply.
