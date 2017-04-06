@@ -272,7 +272,7 @@ lift4 f a b c d = f <$> a <*> b <*> c <*> d
   f a
   -> f b
   -> f b
-(*>) fa fb = (pure const <*> fb) <*> fa
+(*>) fa fb = ((\_ b -> b) <$> fa <*> fb)
 
 -- | Apply, discarding the value of the second argument.
 -- Pronounced, left apply.
@@ -297,8 +297,7 @@ lift4 f a b c d = f <$> a <*> b <*> c <*> d
   f b
   -> f a
   -> f b
-(<*) =
-  error "todo: Course.Applicative#(<*)"
+(<*) = lift2 (\a _ -> a)
 
 -- | Sequences a list of structures to a structure of list.
 --
@@ -320,8 +319,8 @@ sequence ::
   Applicative f =>
   List (f a)
   -> f (List a)
-sequence =
-  error "todo: Course.Applicative#sequence"
+sequence (f :. fs) = ((:.) <$> f) <*> sequence fs
+sequence Nil = pure Nil
 
 -- | Replicate an effect a given number of times.
 --
@@ -344,8 +343,7 @@ replicateA ::
   Int
   -> f a
   -> f (List a)
-replicateA =
-  error "todo: Course.Applicative#replicateA"
+replicateA n f = sequence $ replicate n f
 
 -- | Filter a list with a predicate that produces an effect.
 --
@@ -372,8 +370,8 @@ filtering ::
   (a -> f Bool)
   -> List a
   -> f (List a)
-filtering =
-  error "todo: Course.Applicative#filtering"
+filtering f (a :. as) = (\t as' -> if t then a :. as' else as') <$> f a <*> filtering f as
+filtering _ Nil = pure Nil
 
 -----------------------
 -- SUPPORT LIBRARIES --
