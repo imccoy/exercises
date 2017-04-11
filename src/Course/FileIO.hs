@@ -73,8 +73,11 @@ the contents of c
 -- /Tip:/ use @getArgs@ and @run@
 main ::
   IO ()
-main =
-  error "todo: Course.FileIO#main"
+main = do
+  args <- getArgs
+  case args of
+    Nil -> error "Need at least one command line argument"
+    (fileName :. _) -> run fileName 
 
 type FilePath =
   Chars
@@ -83,31 +86,32 @@ type FilePath =
 run ::
   Chars
   -> IO ()
-run =
-  error "todo: Course.FileIO#run"
+run file = do
+  files <- lines <$> readFile file
+  contents <- getFiles files
+  printFiles contents
 
 getFiles ::
   List FilePath
   -> IO (List (FilePath, Chars))
-getFiles =
-  error "todo: Course.FileIO#getFiles"
+getFiles filePaths = sequence $ getFile <$> filePaths
 
 getFile ::
   FilePath
   -> IO (FilePath, Chars)
-getFile =
-  error "todo: Course.FileIO#getFile"
+getFile path = (\content -> (path, content)) <$> readFile path
 
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles =
-  error "todo: Course.FileIO#printFiles"
+printFiles ((path, content) :. files) = do printFile path content
+                                           printFiles files
+printFiles Nil = return ()
 
 printFile ::
   FilePath
   -> Chars
   -> IO ()
-printFile =
-  error "todo: Course.FileIO#printFile"
+printFile path content = do putStrLn $ "============ " ++ path
+                            putStrLn content
 
