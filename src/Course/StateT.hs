@@ -301,15 +301,15 @@ distinctG ::
   -> Logger Chars (Optional (List a))
 distinctG els = runOptionalT $ evalT (filtering f els) S.empty
   where
-    logEven :: (Integral a, Show a) => a -> StateT (S.Set a) (OptionalT (Logger Chars)) a
-    logEven el | even el   = StateT $ \s -> OptionalT $ log1 (listh "even number: " ++ listh (show el)) $ Full (el, s)
-               | otherwise = pure el
+    logEven :: (Integral a, Show a) => a -> StateT (S.Set a) (OptionalT (Logger Chars)) ()
+    logEven el | even el   = StateT $ \s -> OptionalT $ log1 (listh "even number: " ++ listh (show el)) $ Full ((), s)
+               | otherwise = pure ()
 
 
     f :: (Integral a, Show a) => a -> StateT (S.Set a) (OptionalT (Logger Chars)) Bool
     f el | el > 100 = StateT $ \s -> OptionalT $ log1 (listh "aborting > 100: " ++ listh (show el)) $ Empty   ---- this is super-icky
          | otherwise = do elemsSeen <- getT
-                          logEven el >>= \el ->
+                          logEven el >> 
                             if S.member el elemsSeen
                               then pure False
                               else do putT $ S.insert el elemsSeen
