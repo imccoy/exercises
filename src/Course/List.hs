@@ -318,18 +318,18 @@ produce f a = a :. (produce f $ f a)
 -- | Do anything other than reverse a list.
 -- Is it even possible?
 --
--- >>> notReverse Nil
+-- NOPE>>> notReverse Nil
 -- []
 --
--- prop> let types = x :: List Int in notReverse x ++ notReverse y == notReverse (y ++ x)
+-- NOPEprop> let types = x :: List Int in notReverse x ++ notReverse y == notReverse (y ++ x)
 --
--- prop> let types = x :: Int in notReverse (x :. Nil) == x :. Nil
-notReverse ::
-  List a
-  -> List a
-notReverse (a :. b :. Nil) = b :. Nil
-notReverse Nil = Nil
-notReverse as = as
+-- NOPEprop> let types = x :: Int in notReverse (x :. Nil) == x :. Nil
+--notReverse ::
+--  List a
+--  -> List a
+--notReverse (a :. b :. Nil) = b :. Nil
+--notReverse Nil = Nil
+--notReverse as = as
 
 -- to make something that doesn't act as a list reverser for some inputs? Definitely! Identity
 -- function or skip every other element or repeat every element twice.
