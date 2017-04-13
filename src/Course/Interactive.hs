@@ -82,8 +82,10 @@ data Op =
 -- /Tip:/ @putStrLn :: String -> IO ()@ -- Prints a string and then a new line to standard output.
 convertInteractive ::
   IO ()
-convertInteractive =
-  error "todo: Course.Interactive#convertInteractive"
+convertInteractive = 
+  do putStrLn "Please enter a string"
+     line <- getLine
+     putStrLn $ toUpper <$> line
 
 -- |
 --
@@ -111,7 +113,13 @@ convertInteractive =
 reverseInteractive ::
   IO ()
 reverseInteractive =
-  error "todo: Course.Interactive#reverseInteractive"
+  do putStrLn "Please enter the name of a file you want to reverse."
+     inputFilename <- getLine
+     putStrLn "Where shall I save the reversed file to?"
+     outputFilename <- getLine
+     fileChars <- readFile inputFilename
+     writeFile outputFilename $ reverse fileChars
+     
 
 -- |
 --
@@ -137,7 +145,13 @@ reverseInteractive =
 encodeInteractive ::
   IO ()
 encodeInteractive =
-  error "todo: Course.Interactive#encodeInteractive"
+  do putStrLn "What shall I encode?"
+     input <- getLine
+     putStrLn $ flatMap encodeChar input
+  where encodeChar ' ' =  "%20"
+        encodeChar '\t' =  "%09"
+        encodeChar '\"' =  "%22"
+        encodeChar c =  (c :. Nil)
 
 interactive ::
   IO ()

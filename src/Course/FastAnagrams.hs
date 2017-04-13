@@ -14,8 +14,25 @@ fastAnagrams ::
   Chars
   -> Filename
   -> IO (List Chars)
-fastAnagrams =
-  error "todo: Course.FastAnagrams#fastAnagrams"
+fastAnagrams chars dictionaryFilename =
+  let dictionary = lines <$> readFile dictionaryFilename
+      charsPerms = S.fromList . hlist . permutations $ chars
+   in filter (flip S.member charsPerms) <$> dictionary
+
+fastAnagrams' ::
+  Chars
+  -> Filename
+  -> IO (List Chars)
+fastAnagrams' chars dictionaryFilename =
+  let dictionary = lines <$> readFile dictionaryFilename
+      sortedChars = NoCaseString $ sort chars
+   in filter ((sortedChars ==) . NoCaseString . sort)  <$> dictionary
+
+sort :: Ord a => List a -> List a
+sort Nil = Nil
+sort (x :. xs) = sort before ++ x :. sort after
+  where before = filter (< x) xs
+        after = filter (>= x) xs
 
 newtype NoCaseString =
   NoCaseString {

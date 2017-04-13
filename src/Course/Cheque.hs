@@ -187,7 +187,7 @@ data Digit =
   | Seven
   | Eight
   | Nine
-  deriving (Eq, Enum, Bounded)
+  deriving (Eq, Enum, Bounded, Show)
 
 showDigit ::
   Digit
@@ -218,7 +218,7 @@ data Digit3 =
   D1 Digit
   | D2 Digit Digit
   | D3 Digit Digit Digit
-  deriving Eq
+  deriving (Eq, Show)
 
 -- Possibly convert a character to a digit.
 fromChar ::
@@ -323,5 +323,85 @@ fromChar _ =
 dollars ::
   Chars
   -> Chars
-dollars =
-  error "todo: Course.Cheque#dollars"
+dollars chars = let (dollarGroups, centDigits) = digitGroups chars
+                 in dollarGroupsString dollarGroups ++ " and " ++ centDigitsString centDigits
+
+centDigitsString :: TwoDigitCents -> Chars
+centDigitsString (Zero, One) = "one cent"
+centDigitsString (tens, ones) = upToOneHundred tens ones ++ " cents"
+
+upToOneHundred :: Digit -> Digit -> Chars
+upToOneHundred = go
+  where go Zero n = showDigit n
+        go One n = teensString n
+        go tens ones = tensString tens ++ ((('-' :.) <$> onesString ones) ?? "")
+        onesString Zero = Empty
+
+        onesString n = Full $ showDigit n
+
+        tensString Zero = "zerosy" -- never happens
+        tensString One = "onesy" -- never happens
+        tensString Two = "twenty"
+        tensString Three = "thirty"
+        tensString Four = "forty"
+        tensString Five = "fifty"
+        tensString Six = "sixty"
+        tensString Seven = "seventy"
+        tensString Eight = "eighty"
+        tensString Nine = "ninety"
+        
+        teensString Zero = "ten"
+        teensString One = "eleven"
+        teensString Two = "twelve"
+        teensString Three = "thirteen"
+        teensString Four = "fourteen"
+        teensString Five = "fifteen"
+        teensString Six = "sixteen"
+        teensString Seven = "seventeen"
+        teensString Eight = "eighteen"
+        teensString Nine = "nineteen"
+
+dollarGroupString :: Digit3 -> Chars
+dollarGroupString (D1 d) = upToOneHundred Zero d
+dollarGroupString (D2 tens ones) = upToOneHundred tens ones
+dollarGroupString (D3 hundreds Zero Zero) = showDigit hundreds ++ " hundred"
+dollarGroupString (D3 hundreds tens ones) = showDigit hundreds ++ " hundred and " ++ upToOneHundred tens ones
+
+isZero :: Digit3 -> Bool
+isZero (D1 Zero) = True
+isZero _ = False
+
+simplifyGroup :: Digit3 -> Digit3
+simplifyGroup (D3 Zero n1 n2) = simplifyGroup $ D2 n1 n2
+simplifyGroup (D2 Zero n) = D1 n
+simplifyGroup ds = ds
+
+dollarGroupsString :: List Digit3 -> Chars
+dollarGroupsString Nil = "zero dollars"
+dollarGroupsString ((D1 One) :. Nil) = "one dollar"
+dollarGroupsString groups | all isZero groups = "zero dollars"
+                          | otherwise = (++ "dollars") . concat . intercalate " " . removeEmpty . reverse . zipWith go groups $ illion
+  where go group suffix | isZero group = Nil
+                        | otherwise = dollarGroupString group ++ " " ++ suffix
+        concat = foldRight (++) Nil
+        removeEmpty = filter (not . isEmpty)
+        intercalate _ (x :. Nil) = x :. Nil
+        intercalate y (x :. xs) = x :. y :. intercalate y xs
+        intercalate _ Nil = Nil
+
+type TwoDigitCents = (Digit, Digit)
+
+digitGroups :: Chars -> (List Digit3, TwoDigitCents)
+digitGroups digits = (map simplifyGroup . go . reverse $ dollarsChars, twoDigitCents centsChars)
+  where (dirtyDollarsChars, dirtyCentsChars) = break (== '.') digits
+        dollarsChars = listOptional fromChar dirtyDollarsChars
+        centsChars = listOptional fromChar dirtyCentsChars
+        go (d3 :. d2 :. d1 :. ds)  = (D3 d1 d2 d3) :. go ds
+        go (d2 :. d1 :. ds) = (D2 d1 d2) :. go ds
+        go (d1 :. ds) = (D1 d1) :. go ds
+        go Nil = Nil
+
+twoDigitCents :: List Digit -> (Digit, Digit)
+twoDigitCents (d1 :. d2 :. _) = (d1, d2)
+twoDigitCents (d1 :. Nil) = (d1, Zero)
+twoDigitCents Nil = (Zero, Zero)
