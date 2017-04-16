@@ -125,6 +125,26 @@ let iff_reflect = function
 | true -> ReflectT
 | false -> ReflectF
 
+module type TotalOrder' = 
+ sig 
+  type t 
+ end
+
+module MakeOrderTac = 
+ functor (O:TotalOrder') ->
+ struct 
+  
+ end
+
+module MaxLogicalProperties = 
+ functor (O:TotalOrder') ->
+ functor (M:sig 
+  val max : O.t -> O.t -> O.t
+ end) ->
+ struct 
+  module Private_Tac = MakeOrderTac(O)
+ end
+
 module Pos = 
  struct 
   type t = positive
@@ -1429,6 +1449,24 @@ module Coq_Pos =
     
    end
   
+  module Private_Rev = 
+   struct 
+    module ORev = 
+     struct 
+      type t = positive
+     end
+    
+    module MRev = 
+     struct 
+      (** val max : positive -> positive -> positive **)
+      
+      let max x y =
+        min y x
+     end
+    
+    module MPRev = MaxLogicalProperties(ORev)(MRev)
+   end
+  
   module Private_Dec = 
    struct 
     (** val max_case_strong :
@@ -1964,15 +2002,12 @@ module N =
   
   module Private_OrderTac = 
    struct 
-    module IsTotal = 
+    module Elts = 
      struct 
-      
+      type t = n
      end
     
-    module Tac = 
-     struct 
-      
-     end
+    module Tac = MakeOrderTac(Elts)
    end
   
   module Private_NZPow = 
@@ -2043,6 +2078,24 @@ module N =
   module Private_Tac = 
    struct 
     
+   end
+  
+  module Private_Rev = 
+   struct 
+    module ORev = 
+     struct 
+      type t = n
+     end
+    
+    module MRev = 
+     struct 
+      (** val max : n -> n -> n **)
+      
+      let max x y =
+        min y x
+     end
+    
+    module MPRev = MaxLogicalProperties(ORev)(MRev)
    end
   
   module Private_Dec = 
