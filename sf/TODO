@@ -1,4 +1,5 @@
-pigeonhole_principle
+new exercises in Logic.v. pigeonhole_principle ?
 optimiser
 ImpCEvalFun
 ImpParser
+Equiv.v p1_may_diverge, capprox

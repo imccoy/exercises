@@ -1,97 +1,89 @@
 (** * Logic: Logic in Coq *)
 
-Require Export MoreProp. 
+Require Export Tactics.
+Require Export Induction.
 
-(** Coq's built-in logic is very small: the only primitives are
-    [Inductive] definitions, universal quantification ([forall]), and
-    implication ([->]), while all the other familiar logical
-    connectives -- conjunction, disjunction, negation, existential
-    quantification, even equality -- can be encoded using just these.
 
-    This chapter explains the encodings and shows how the tactics
-    we've seen can be used to carry out standard forms of logical
-    reasoning involving these connectives. *)
+(** In previous chapters, we have seen many examples of factual
+    claims (_propositions_) and ways of presenting evidence of their
+    truth (_proofs_).  In particular, we have worked extensively with
+    _equality propositions_ of the form [e1 = e2], with
+    implications ([P -> Q]), and with quantified propositions ([forall
+    x, P]).  In this chapter, we will see how Coq can be used to carry
+    out other familiar forms of logical reasoning.
 
-(* ########################################################### *)
-(** * Conjunction *)
+    Before diving into details, let's talk a bit about the status of
+    mathematical statements in Coq.  Recall that Coq is a _typed_
+    language, which means that every sensible expression in its world
+    has an associated type.  Logical claims are no exception: any
+    statement we might try to prove in Coq has a type, namely [Prop],
+    the type of _propositions_.  We can see this with the [Check]
+    command: *)
 
-(** The logical conjunction of propositions [P] and [Q] can be
-    represented using an [Inductive] definition with one
-    constructor. *)
+Check 3 = 3.
+(* ===> Prop *)
 
-Inductive and (P Q : Prop) : Prop :=
-  conj : P -> Q -> (and P Q). 
+Check forall n m : nat, n + m = m + n.
+(* ===> Prop *)
 
-(** Note that, like the definition of [ev] in a previous
-    chapter, this definition is parameterized; however, in this case,
-    the parameters are themselves propositions, rather than numbers. *)
+(** Note that _all_ syntactically well-formed propositions have type
+    [Prop] in Coq, regardless of whether they are true or not.
 
-(** The intuition behind this definition is simple: to
-    construct evidence for [and P Q], we must provide evidence
-    for [P] and evidence for [Q].  More precisely:
+    Simply _being_ a proposition is one thing; being _provable_ is
+    something else! *)
 
-    - [conj p q] can be taken as evidence for [and P Q] if [p]
-      is evidence for [P] and [q] is evidence for [Q]; and
+Check forall n : nat, n = 2.
+(* ===> Prop *)
 
-    - this is the _only_ way to give evidence for [and P Q] --
-      that is, if someone gives us evidence for [and P Q], we
-      know it must have the form [conj p q], where [p] is
-      evidence for [P] and [q] is evidence for [Q]. 
+Check 3 = 4.
+(* ===> Prop *)
 
-   Since we'll be using conjunction a lot, let's introduce a more
-   familiar-looking infix notation for it. *)
+(** Indeed, propositions don't just have types: they are _first-class
+    objects_ that can be manipulated in the same ways as the other
+    entities in Coq's world.  So far, we've seen one primary place
+    that propositions can appear: in [Theorem] (and [Lemma] and
+    [Example]) declarations. *)
 
-Notation "P /\ Q" := (and P Q) : type_scope.
+Theorem plus_2_2_is_4 :
+  2 + 2 = 4.
+Proof. reflexivity.  Qed.
 
-(** (The [type_scope] annotation tells Coq that this notation
-    will be appearing in propositions, not values.) *)
+(** But propositions can be used in many other ways.  For example, we
+    can give a name to a proposition using a [Definition], just as we
+    have given names to expressions of other sorts. *)
 
-(** Consider the "type" of the constructor [conj]: *)
+Definition plus_fact : Prop := 2 + 2 = 4.
+Check plus_fact.
+(* ===> plus_fact : Prop *)
 
-Check conj.
-(* ===>  forall P Q : Prop, P -> Q -> P /\ Q *)
+(** We can later use this name in any situation where a proposition is
+    expected -- for example, as the claim in a [Theorem] declaration. *)
 
-(** Notice that it takes 4 inputs -- namely the propositions [P]
-    and [Q] and evidence for [P] and [Q] -- and returns as output the
-    evidence of [P /\ Q]. *)
+Theorem plus_fact_is_true :
+  plus_fact.
+Proof. reflexivity.  Qed.
 
-(** Besides the elegance of building everything up from a tiny
-    foundation, what's nice about defining conjunction this way is
-    that we can prove statements involving conjunction using the
-    tactics that we already know.  For example, if the goal statement
-    is a conjuction, we can prove it by applying the single
-    constructor [conj], which (as can be seen from the type of [conj])
-    solves the current goal and leaves the two parts of the
-    conjunction as subgoals to be proved separately. *)
+(** We can also write _parameterized_ propositions -- that is,
+    functions that take arguments of some type and return a
+    proposition. *)
 
-Theorem and_example : 
-  (beautiful 0) /\ (beautiful 3).
-Proof.
-  apply conj.
-  Case "left". apply b_0.
-  Case "right". apply b_3.  Qed.
+(** For instance, the following function takes a number
+    and returns a proposition asserting that this number is equal to
+    three: *)
 
-(** Just for convenience, we can use the tactic [split] as a shorthand for
-    [apply conj]. *)
+Definition is_three (n : nat) : Prop :=
+  n = 3.
+Check is_three.
+(* ===> nat -> Prop *)
 
-Theorem and_example' : 
-  (ev 0) /\ (ev 4).
-Proof.
-  split.
-    Case "left". apply ev_0.
-    Case "right". apply ev_SS. apply ev_SS. apply ev_0.  Qed.
+(** In Coq, functions that return propositions are said to define
+    _properties_ of their arguments.
 
-(** Conversely, the [inversion] tactic can be used to take a
-    conjunction hypothesis in the context, calculate what evidence
-    must have been used to build it, and add variables representing
-    this evidence to the proof context. *)
+    For instance, here's a (polymorphic) property defining the
+    familiar notion of an _injective function_. *)
 
-Theorem proj1 : forall P Q : Prop, 
-  P /\ Q -> P.
-Proof.
-  intros P Q H.
-  inversion H as [HP HQ]. 
-  apply HP.  Qed.
+Definition injective {A B} (f : A -> B) :=
+  forall x y : A, f x = f y -> x = y.
 
 (** **** Exercise: 1 star, optional (proj2) *)
 Theorem proj2 : forall P Q : Prop, 
@@ -110,8 +102,8 @@ Proof.
   intros P Q H.
   inversion H as [HP HQ]. 
   split.  
-    Case "left". apply HQ. 
-    Case "right". apply HP.  Qed.
+    -  (* left *) apply HQ. 
+    -  (* right *) apply HP.  Qed.
   
 
 (** **** Exercise: 2 stars (and_assoc) *)
@@ -125,22 +117,24 @@ Proof.
   intros P Q R H.
   inversion H as [HP [HQ HR]].
   split.
-    Case "left". split.
-      SCase "left". apply HP.
-      SCase "right". apply HQ.
-    Case "right". apply HR.
+    -  (* left *) split.
+      +  (* left *) apply HP.
+      +  (* right *) apply HQ.
+    -  (* right *) apply HR.
 Qed.
 (** [] *)
 
-(** **** Exercise: 2 stars (even__ev) *)
-(** Now we can prove the other direction of the equivalence of [even]
-   and [ev], which we left hanging in chapter [Prop].  Notice that the
-   left-hand conjunct here is the statement we are actually interested
-   in; the right-hand conjunct is needed in order to make the
-   induction hypothesis strong enough that we can carry out the
-   reasoning in the inductive step.  (To see why this is needed, try
-   proving the left conjunct by itself and observe where things get
-   stuck.) *)
+Lemma succ_inj : injective S.
+Proof.
+  intros n m H. inversion H. reflexivity.
+Qed.
+
+Definition even (n:nat) : Prop := 
+  evenb n = true.
+
+Inductive ev : nat -> Prop :=
+  | ev_0 : ev O
+  | ev_SS : forall n:nat, ev n -> ev (S (S n)).
 
 Theorem even__ev : forall n : nat,
   (even n -> ev n) /\ (even (S n) -> ev (S n)).
@@ -148,54 +142,58 @@ Proof.
   (* Hint: Use induction on [n]. *)
   intros n.
   induction n as [|n'].
-    Case "n = 0". split.
-      SCase "ev 0". intros H. apply ev_0.
-      SCase "ev (S 0)". intros H. inversion H.
-    Case "n = S n'". split.
-      SCase "ev (S n')".
+    -  (* n = 0 *) split.
+      +  (* ev 0 *) intros H. apply ev_0.
+      +  (* ev (S 0) *) intros H. inversion H.
+    -  (* n = S n' *) split.
+      +  (* ev (S n') *)
         intros H. 
         inversion IHn'. apply H1. apply H.
-      SCase "ev (S (S n'))".
+      +  (* ev (S (S n')) *)
         intros H.
         inversion IHn'. apply ev_SS. apply H0.
         inversion H. unfold even. apply H3.
 Qed.
 
 (** [] *)
+(** The equality operator [=] is also a function that returns a
+    [Prop].
+    The expression [n = m] is syntactic sugar for [eq n m], defined
+    using Coq's [Notation] mechanism. Because [eq] can be used with
+    elements of any type, it is also polymorphic: *)
 
+Check @eq.
+(* ===> forall A : Type, A -> A -> Prop *)
 
+(** (Notice that we wrote [@eq] instead of [eq]: The type
+    argument [A] to [eq] is declared as implicit, so we need to turn
+    off implicit arguments to see the full type of [eq].) *)
 
-(* ###################################################### *)
-(** ** Iff *)
+(* ################################################################# *)
+(** * Logical Connectives *)
 
-(** The handy "if and only if" connective is just the conjunction of
-    two implications. *)
+(* ================================================================= *)
+(** ** Conjunction *)
 
-Definition iff (P Q : Prop) := (P -> Q) /\ (Q -> P).
+(** The _conjunction_ (or _logical and_) of propositions [A] and [B]
+    is written [A /\ B], representing the claim that both [A] and [B]
+    are true. *)
 
-Notation "P <-> Q" := (iff P Q) 
-                      (at level 95, no associativity) 
-                      : type_scope.
+Example and_example : 3 + 4 = 7 /\ 2 * 2 = 4.
 
-Theorem iff_implies : forall P Q : Prop, 
-  (P <-> Q) -> P -> Q.
-Proof.  
-  intros P Q H. 
-  inversion H as [HAB HBA]. apply HAB.  Qed.
+(** To prove a conjunction, use the [split] tactic.  It will generate
+    two subgoals, one for each part of the statement: *)
 
-Theorem iff_sym : forall P Q : Prop, 
-  (P <-> Q) -> (Q <-> P).
 Proof.
   (* WORKED IN CLASS *)
-  intros P Q H. 
-  inversion H as [HAB HBA].
   split.
-    Case "->". apply HBA.
-    Case "<-". apply HAB.  Qed.
+  - (* 3 + 4 = 7 *) reflexivity.
+  - (* 2 + 2 = 4 *) reflexivity.
+Qed.
 
-(** **** Exercise: 1 star, optional (iff_properties) *)
-(** Using the above proof that [<->] is symmetric ([iff_sym]) as
-    a guide, prove that it is also reflexive and transitive. *)
+(** For any propositions [A] and [B], if we assume that [A] is true
+    and we assume that [B] is true, we can conclude that [A /\ B] is
+    also true. *)
 
 Theorem iff_refl : forall P : Prop, 
   P <-> P.
@@ -212,8 +210,8 @@ Proof.
   inversion HPQ as [HiPQ HiQP].
   inversion HQR as [HiQR HiRQ].
   split.
-    Case "P -> R". intros HP. apply HiQR. apply HiPQ. apply HP.
-    Case "R -> P". intros HR. apply HiQP. apply HiRQ. apply HR.
+    -  (* P -> R *) intros HP. apply HiQR. apply HiPQ. apply HP.
+    -  (* R -> P *) intros HR. apply HiQP. apply HiRQ. apply HR.
 Qed.
 
 (** Hint: If you have an iff hypothesis in the context, you can use
@@ -225,95 +223,157 @@ Qed.
     avoiding the need for some low-level manipulation when reasoning
     with them.  In particular, [rewrite] can be used with [iff]
     statements, not just equalities. *)
-
-(* ############################################################ *)
-(** * Disjunction *)
-
-(** Disjunction ("logical or") can also be defined as an
-    inductive proposition. *)
-
-Inductive or (P Q : Prop) : Prop :=
-  | or_introl : P -> or P Q
-  | or_intror : Q -> or P Q. 
-
-Notation "P \/ Q" := (or P Q) : type_scope.
-
-(** Consider the "type" of the constructor [or_introl]: *)
-
-Check or_introl.
-(* ===>  forall P Q : Prop, P -> P \/ Q *)
-
-(** It takes 3 inputs, namely the propositions [P], [Q] and
-    evidence of [P], and returns, as output, the evidence of [P \/ Q].
-    Next, look at the type of [or_intror]: *)
-
-Check or_intror.
-(* ===>  forall P Q : Prop, Q -> P \/ Q *)
-
-(** It is like [or_introl] but it requires evidence of [Q]
-    instead of evidence of [P]. *)
-
-(** Intuitively, there are two ways of giving evidence for [P \/ Q]:
-
-    - give evidence for [P] (and say that it is [P] you are giving
-      evidence for -- this is the function of the [or_introl]
-      constructor), or
-
-    - give evidence for [Q], tagged with the [or_intror]
-      constructor. *)
-
-(** Since [P \/ Q] has two constructors, doing [inversion] on a
-    hypothesis of type [P \/ Q] yields two subgoals. *)
-
-Theorem or_commut : forall P Q : Prop,
-  P \/ Q  -> Q \/ P.
+Lemma and_intro : forall A B : Prop, A -> B -> A /\ B.
 Proof.
-  intros P Q H.
-  inversion H as [HP | HQ].
-    Case "left". apply or_intror. apply HP.
-    Case "right". apply or_introl. apply HQ.  Qed.
-
-(** From here on, we'll use the shorthand tactics [left] and [right]
-    in place of [apply or_introl] and [apply or_intror]. *)
-
-Theorem or_commut' : forall P Q : Prop,
-  P \/ Q  -> Q \/ P.
-Proof.
-  intros P Q H.
-  inversion H as [HP | HQ].
-    Case "left". right. apply HP.
-    Case "right". left. apply HQ.  Qed.
-
-
-
-
-
-Theorem or_distributes_over_and_1 : forall P Q R : Prop,
-  P \/ (Q /\ R) -> (P \/ Q) /\ (P \/ R).
-Proof. 
-  intros P Q R. intros H. inversion H as [HP | [HQ HR]]. 
-    Case "left". split.
-      SCase "left". left. apply HP.
-      SCase "right". left. apply HP.
-    Case "right". split.
-      SCase "left". right. apply HQ.
-      SCase "right". right. apply HR.  Qed.
-
-(** **** Exercise: 2 stars (or_distributes_over_and_2) *)
-Theorem or_distributes_over_and_2 : forall P Q R : Prop,
-  (P \/ Q) /\ (P \/ R) -> P \/ (Q /\ R).
-Proof.
-  intros P Q R H.
-  inversion H.
-
-  induction H0.
-    left. apply H0.
-    induction H1.
-      left. apply H1.
-      right. split.
-        apply H0.
-        apply H1.
+  intros A B HA HB. split.
+  - apply HA.
+  - apply HB.
 Qed.
+
+(** Since applying a theorem with hypotheses to some goal has the
+    effect of generating as many subgoals as there are hypotheses for
+    that theorem, we can apply [and_intro] to achieve the same effect
+    as [split]. *)
+
+Example and_example' : 3 + 4 = 7 /\ 2 * 2 = 4.
+Proof.
+  apply and_intro.
+  - (* 3 + 4 = 7 *) reflexivity.
+  - (* 2 + 2 = 4 *) reflexivity.
+Qed.
+
+(** **** Exercise: 2 stars (and_exercise)  *)
+Example and_exercise :
+  forall n m : nat, n + m = 0 -> n = 0 /\ m = 0.
+Proof.
+  intros n m H.
+  split.
+  - induction m.
+    rewrite <- plus_n_O in H. assumption.
+    rewrite <- plus_n_Sm in H. inversion H.
+  -  destruct n. simpl in H. assumption. simpl in H. inversion H.
+Qed.
+
+(** [] *)
+
+(** So much for proving conjunctive statements.  To go in the other
+    direction -- i.e., to _use_ a conjunctive hypothesis to help prove
+    something else -- we employ the [destruct] tactic.
+
+    If the proof context contains a hypothesis [H] of the form
+    [A /\ B], writing [destruct H as [HA HB]] will remove [H] from the
+    context and add two new hypotheses: [HA], stating that [A] is
+    true, and [HB], stating that [B] is true.  *)
+
+Lemma and_example2 :
+  forall n m : nat, n = 0 /\ m = 0 -> n + m = 0.
+Proof.
+  (* WORKED IN CLASS *)
+  intros n m H.
+  destruct H as [Hn Hm].
+  rewrite Hn. rewrite Hm.
+  reflexivity.
+Qed.
+
+(** As usual, we can also destruct [H] right when we introduce it,
+    instead of introducing and then destructing it: *)
+
+Lemma and_example2' :
+  forall n m : nat, n = 0 /\ m = 0 -> n + m = 0.
+Proof.
+  intros n m [Hn Hm].
+  rewrite Hn. rewrite Hm.
+  reflexivity.
+Qed.
+
+(** You may wonder why we bothered packing the two hypotheses [n = 0]
+    and [m = 0] into a single conjunction, since we could have also
+    stated the theorem with two separate premises: *)
+
+Lemma and_example2'' :
+  forall n m : nat, n = 0 -> m = 0 -> n + m = 0.
+Proof.
+  intros n m Hn Hm.
+  rewrite Hn. rewrite Hm.
+  reflexivity.
+Qed.
+
+(** For this theorem, both formulations are fine.  But it's important
+    to understand how to work with conjunctive hypotheses because
+    conjunctions often arise from intermediate steps in proofs,
+    especially in bigger developments.  Here's a simple example: *)
+
+Lemma and_example3 :
+  forall n m : nat, n + m = 0 -> n * m = 0.
+Proof.
+  intros n m H.
+  assert (H' : n = 0 /\ m = 0).
+  { apply and_exercise. apply H. }
+  destruct H' as [Hn Hm].
+  rewrite Hn. reflexivity.
+Qed.
+
+(** Another common situation with conjunctions is that we know
+    [A /\ B] but in some context we need just [A] (or just [B]).
+    The following lemmas are useful in such cases: *)
+
+Lemma proj1 : forall P Q : Prop,
+  P /\ Q -> P.
+Proof.
+  intros P Q [HP HQ].
+  apply HP.  Qed.
+
+(** **** Exercise: 1 star, optional (proj2)  *)
+Lemma proj2' : forall P Q : Prop,
+  P /\ Q -> Q.
+Proof.
+  intros P Q [HP HQ].      
+  apply HQ. Qed.
+(** [] *)
+
+(** Finally, we sometimes need to rearrange the order of conjunctions
+    and/or the grouping of multi-way conjunctions.  The following
+    commutativity and associativity theorems are handy in such
+    cases. *)
+
+Theorem and_commut' : forall P Q : Prop,
+  P /\ Q -> Q /\ P.
+Proof.
+  (* WORKED IN CLASS *)
+  intros P Q [HP HQ].
+  split.
+    - (* left *) apply HQ.
+    - (* right *) apply HP.  Qed.
+  
+(** By the way, the infix notation [/\] is actually just syntactic
+    sugar for [and A B].  That is, [and] is a Coq operator that takes
+    two propositions as arguments and yields a proposition. *)
+
+Check and.
+(* ===> and : Prop -> Prop -> Prop *)
+
+(* ================================================================= *)
+(** ** Disjunction *)
+
+(** Another important connective is the _disjunction_, or _logical or_
+    of two propositions: [A \/ B] is true when either [A] or [B]
+    is.  (Alternatively, we can write [or A B], where [or : Prop ->
+    Prop -> Prop].)
+
+    To use a disjunctive hypothesis in a proof, we proceed by case
+    analysis, which, as for [nat] or other data types, can be done
+    with [destruct] or [intros].  Here is an example: *)
+
+Lemma or_example :
+  forall n m : nat, n = 0 \/ m = 0 -> n * m = 0.
+Proof.
+  intros n m H.
+  destruct H.
+  - rewrite H. reflexivity.
+  - rewrite H. rewrite mult_0_r. reflexivity.
+  
+Qed.
+
 (** [] *)
 
 (** **** Exercise: 1 star, optional (or_distributes_over_and) *)
@@ -322,41 +382,50 @@ Theorem or_distributes_over_and : forall P Q R : Prop,
 Proof.
   intros P Q R.
   split.
-    apply or_distributes_over_and_1.
-    apply or_distributes_over_and_2.
+    - intros H. destruct H. split. left. assumption. left. assumption.
+      destruct H. split. right. assumption. right. assumption.
+    - intros [HPQ HPR]. 
+      destruct HPQ. 
+        + left. assumption.
+        + destruct HPR. left. assumption. right. split; assumption.
+
 Qed.
 (** [] *)
 
-(* ################################################### *)
-(** ** Relating [/\] and [\/] with [andb] and [orb] (advanced) *)
+(** Conversely, to show that a disjunction holds, we need to show that
+    one of its sides does. This is done via two tactics, [left] and
+    [right].  As their names imply, the first one requires
+    proving the left side of the disjunction, while the second
+    requires proving its right side.  Here is a trivial use... *)
 
-(** We've already seen several places where analogous structures
-    can be found in Coq's computational ([Type]) and logical ([Prop])
-    worlds.  Here is one more: the boolean operators [andb] and [orb]
-    are clearly analogs of the logical connectives [/\] and [\/].
-    This analogy can be made more precise by the following theorems,
-    which show how to translate knowledge about [andb] and [orb]'s
-    behaviors on certain inputs into propositional facts about those
-    inputs. *)
-
-Theorem andb_prop : forall b c,
-  andb b c = true -> b = true /\ c = true.
+Lemma or_intro : forall A B : Prop, A -> A \/ B.
 Proof.
-  (* WORKED IN CLASS *)
-  intros b c H.
-  destruct b.
-    Case "b = true". destruct c.
-      SCase "c = true". apply conj. reflexivity. reflexivity.
-      SCase "c = false". inversion H.
-    Case "b = false". inversion H.  Qed.
+  intros A B HA.
+  left.
+  apply HA.
+Qed.
 
-Theorem andb_true_intro : forall b c,
-  b = true /\ c = true -> andb b c = true.
+(** ... and a slightly more interesting example requiring both [left]
+    and [right]: *)
+
+Lemma zero_or_succ :
+  forall n : nat, n = 0 \/ n = S (pred n).
 Proof.
-  (* WORKED IN CLASS *)
+  intros [|n].
+  - left. reflexivity.
+  - right. reflexivity.
+Qed.
+
+(** **** Exercise: 1 star (mult_eq_0)  *)
+Lemma mult_eq_0 :
+  forall n m, n * m = 0 -> n = 0 \/ m = 0.
+Proof.
   intros b c H.
-  inversion H.
-  rewrite H0. rewrite H1. reflexivity. Qed.
+  induction b. left. reflexivity. simpl in H.
+  assert (Hplus_n_0_0: forall m n, m + n * m = 0 -> m = 0).
+    intros m n Hmult. induction m. reflexivity. simpl in Hmult. inversion Hmult.
+  apply Hplus_n_0_0 in H. right. assumption.
+Qed.
 
 (** **** Exercise: 2 stars, optional (bool_prop) *)
 Theorem andb_false : forall b c,
@@ -364,21 +433,19 @@ Theorem andb_false : forall b c,
 Proof. 
   intros b c H.
   destruct b.
-    Case "b = true". destruct c.
-      SCase "c = true". inversion H.
-      SCase "c = false". right. reflexivity.
-    Case "b = false". left. reflexivity.
+    -  (* b = true *) destruct c.
+      +  (* c = true *) inversion H.
+      +  (* c = false *) right. reflexivity.
+    -  (* b = false *) left. reflexivity.
 Qed.
+(** [] *)
 
-Theorem orb_prop : forall b c,
-  orb b c = true -> b = true \/ c = true.
+(** **** Exercise: 1 star (or_commut)  *)
+Theorem or_commut : forall P Q : Prop,
+  P \/ Q  -> Q \/ P.
 Proof.
-  intros b c Horb.
-  destruct b.
-    Case "b = true". left. reflexivity.
-    Case "b = false". destruct c.
-      SCase "c = true". right. reflexivity.
-      SCase "c = false". inversion Horb.
+  intros P Q HPQ.
+  destruct HPQ. right. assumption. left. assumption.
 Qed.
 
 Theorem orb_false_elim : forall b c,
@@ -386,123 +453,107 @@ Theorem orb_false_elim : forall b c,
 Proof. 
   intros b c Horb.
   destruct b.
-    Case "b = true". inversion Horb.
-    Case "b = false". destruct c.
-      SCase "c = true". inversion Horb.
-      SCase "c = false". split. reflexivity. reflexivity.
+    -  (* b = true *) inversion Horb.
+    -  (* b = false *) destruct c.
+      +  (* c = true *) inversion Horb.
+      +  (* c = false *) split. reflexivity. reflexivity.
 Qed.
 (** [] *)
 
+(* ================================================================= *)
+(** ** Falsehood and Negation *)
 
+(** So far, we have mostly been concerned with proving that certain
+    things are _true_ -- addition is commutative, appending lists is
+    associative, etc.  Of course, we may also be interested in
+    _negative_ results, showing that certain propositions are _not_
+    true. In Coq, such negative statements are expressed with the
+    negation operator [~].
 
-(* ################################################### *)
-(** * Falsehood *)
+    To see how negation works, recall the discussion of the _principle
+    of explosion_ from the [Tactics] chapter; it asserts that, if we
+    assume a contradiction, then any other proposition can be derived.
+    Following this intuition, we could define [~ P] ("not [P]") as
+    [forall Q, P -> Q].  Coq actually makes a slightly different
+    choice, defining [~ P] as [P -> False], where [False] is a
+    _particular_ contradictory proposition defined in the standard
+    library. *)
 
-(** Logical falsehood can be represented in Coq as an inductively
-    defined proposition with no constructors. *)
-
-Inductive False : Prop := . 
-
-(** Intuition: [False] is a proposition for which there is no way
-    to give evidence. *)
-
-
-(** Since [False] has no constructors, inverting an assumption
-    of type [False] always yields zero subgoals, allowing us to
-    immediately prove any goal. *)
-
-Theorem False_implies_nonsense :
-  False -> 2 + 2 = 5.
-Proof. 
-  intros contra.
-  inversion contra.  Qed. 
-
-(** How does this work? The [inversion] tactic breaks [contra] into
-    each of its possible cases, and yields a subgoal for each case.
-    As [contra] is evidence for [False], it has _no_ possible cases,
-    hence, there are no possible subgoals and the proof is done. *)
-
-(** Conversely, the only way to prove [False] is if there is already
-    something nonsensical or contradictory in the context: *)
-
-Theorem nonsense_implies_False :
-  2 + 2 = 5 -> False.
-Proof.
-  intros contra.
-  inversion contra.  Qed.
-
-(** Actually, since the proof of [False_implies_nonsense]
-    doesn't actually have anything to do with the specific nonsensical
-    thing being proved; it can easily be generalized to work for an
-    arbitrary [P]: *)
-
-Theorem ex_falso_quodlibet : forall (P:Prop),
-  False -> P.
-Proof.
-  (* WORKED IN CLASS *)
-  intros P contra.
-  inversion contra.  Qed.
-
-(** The Latin _ex falso quodlibet_ means, literally, "from
-    falsehood follows whatever you please."  This theorem is also
-    known as the _principle of explosion_. *)
-
-
-(* #################################################### *)
-(** ** Truth *)
-
-(** Since we have defined falsehood in Coq, one might wonder whether
-    it is possible to define truth in the same way.  We can. *)
-
-(** **** Exercise: 2 stars, advanced (True) *)
-(** Define [True] as another inductively defined proposition.  (The
-    intution is that [True] should be a proposition for which it is
-    trivial to give evidence.) *)
-
-Inductive True : Prop := trivially_true. 
-(** [] *)
-
-(** However, unlike [False], which we'll use extensively, [True] is
-    used fairly rarely. By itself, it is trivial (and therefore
-    uninteresting) to prove as a goal, and it carries no useful
-    information as a hypothesis. But it can be useful when defining
-    complex [Prop]s using conditionals, or as a parameter to 
-    higher-order [Prop]s. *)
-
-(* #################################################### *)
-(** * Negation *)
-
-(** The logical complement of a proposition [P] is written [not
-    P] or, for shorthand, [~P]: *)
+Module MyNot.
 
 Definition not (P:Prop) := P -> False.
-
-(** The intuition is that, if [P] is not true, then anything at
-    all (even [False]) follows from assuming [P]. *)
 
 Notation "~ x" := (not x) : type_scope.
 
 Check not.
 (* ===> Prop -> Prop *)
 
-(** It takes a little practice to get used to working with
-    negation in Coq.  Even though you can see perfectly well why
-    something is true, it can be a little hard at first to get things
-    into the right configuration so that Coq can see it!  Here are
-    proofs of a few familiar facts about negation to get you warmed
+End MyNot.
+
+(** Since [False] is a contradictory proposition, the principle of
+    explosion also applies to it. If we get [False] into the proof
+    context, we can [destruct] it to complete any goal: *)
+
+Theorem ex_falso_quodlibet : forall (P:Prop),
+  False -> P.
+Proof.
+  (* WORKED IN CLASS *)
+  intros P contra.
+  destruct contra.  Qed.
+
+(** The Latin _ex falso quodlibet_ means, literally, "from falsehood
+    follows whatever you like"; this is another common name for the
+    principle of explosion. *)
+
+(** **** Exercise: 2 stars, optional (not_implies_our_not)  *)
+(** Show that Coq's definition of negation implies the intuitive one
+    mentioned above: *)
+
+
+Fact not_implies_our_not : forall (P:Prop),
+  ~ P -> (forall (Q:Prop), P -> Q).
+Proof.
+  intros P HnotP Q HP. unfold not in HnotP. apply HnotP in HP. inversion HP.
+Qed.
+(** [] *)
+
+(** This is how we use [not] to state that [0] and [1] are different
+    elements of [nat]: *)
+
+Theorem zero_not_one : ~(0 = 1).
+Proof.
+  intros contra. inversion contra.
+Qed.
+
+(** Such inequality statements are frequent enough to warrant a
+    special notation, [x <> y]: *)
+
+Check (0 <> 1).
+(* ===> Prop *)
+
+Theorem zero_not_one' : 0 <> 1.
+Proof.
+  intros H. inversion H.
+Qed.
+
+(** It takes a little practice to get used to working with negation in
+    Coq.  Even though you can see perfectly well why a statement
+    involving negation is true, it can be a little tricky at first to
+    get things into the right configuration so that Coq can understand
+    it!  Here are proofs of a few familiar facts to get you warmed
     up. *)
 
-Theorem not_False : 
+Theorem not_False :
   ~ False.
 Proof.
-  unfold not. intros H. inversion H.  Qed.
+  unfold not. intros H. destruct H. Qed.
 
 Theorem contradiction_implies_anything : forall P Q : Prop,
   (P /\ ~P) -> Q.
-Proof. 
+Proof.
   (* WORKED IN CLASS *)
-  intros P Q H. inversion H as [HP HNA]. unfold not in HNA. 
-  apply HNA in HP. inversion HP.  Qed.
+  intros P Q [HP HNA]. unfold not in HNA.
+  apply HNA in HP. destruct HP.  Qed.
 
 Theorem double_neg : forall P : Prop,
   P -> ~~P.
@@ -510,11 +561,12 @@ Proof.
   (* WORKED IN CLASS *)
   intros P H. unfold not. intros G. apply G. apply H.  Qed.
 
-(** **** Exercise: 2 stars, advanced (double_neg_inf) *)
+(** **** Exercise: 2 stars, advanced, recommendedM (double_neg_inf)  *)
 (** Write an informal proof of [double_neg]:
 
-   _Theorem_: [P] implies [~~P], for any proposition [P].
+   _Theorem_: [P] implies [~~P], for any proposition [P]. *)
 
+   (*
    _Proof_: (one way)
      We know that P holds. Therefore, not-P doesn't. Since not-P doesn't hold,
      it follows that not-not-P does hold.
@@ -525,11 +577,11 @@ Proof.
        
      We know P holds, so (not P) is False. Since (not P) is False, proving
      that (not P) implies False is trivial and we're done.
-   []
 *)
+(** [] *)
 
-(** **** Exercise: 2 stars (contrapositive) *)
-Theorem contrapositive : forall P Q : Prop,
+(** **** Exercise: 2 stars, recommended (contrapositive)  *)
+Theorem contrapositive : forall (P Q : Prop),
   (P -> Q) -> (~Q -> ~P).
 Proof.
   intros P Q HPQ HnQ.
@@ -539,7 +591,7 @@ Proof.
 Qed.
 (** [] *)
 
-(** **** Exercise: 1 star (not_both_true_and_false) *)
+(** **** Exercise: 1 star (not_both_true_and_false)  *)
 Theorem not_both_true_and_false : forall P : Prop,
   ~ (P /\ ~P).
 Proof. 
@@ -547,7 +599,7 @@ Proof.
 Qed.
 (** [] *)
 
-(** **** Exercise: 1 star, advanced (informal_not_PNP) *)
+(** **** Exercise: 1 star, advancedM (informal_not_PNP)  *)
 (** Write an informal proof (in English) of the proposition [forall P
     : Prop, ~(P /\ ~P)]. *)
 
@@ -561,51 +613,67 @@ These informal proofs are the hardest bit of this book.
 
 (** [] *)
 
-Theorem five_not_even :  
-  ~ ev 5.
-Proof. 
-  (* WORKED IN CLASS *)
-  unfold not. intros Hev5. inversion Hev5 as [|n Hev3 Heqn]. 
-  inversion Hev3 as [|n' Hev1 Heqn']. inversion Hev1.  Qed.
+(** Similarly, since inequality involves a negation, it requires a
+    little practice to be able to work with it fluently.  Here is one
+    useful trick.  If you are trying to prove a goal that is
+    nonsensical (e.g., the goal state is [false = true]), apply
+    [ex_falso_quodlibet] to change the goal to [False].  This makes it
+    easier to use assumptions of the form [~P] that may be available
+    in the context -- in particular, assumptions of the form
+    [x<>y]. *)
 
-(** **** Exercise: 1 star (ev_not_ev_S) *)
-(** Theorem [five_not_even] confirms the unsurprising fact that five
-    is not an even number.  Prove this more interesting fact: *)
+Theorem not_true_is_false : forall b : bool,
+  b <> true -> b = false.
+Proof.
+  intros [] H.
+  - (* b = true *)
+    unfold not in H.
+    apply ex_falso_quodlibet.
+    apply H. reflexivity.
+  - (* b = false *)
+    reflexivity.
+Qed.
+
+(** Since reasoning with [ex_falso_quodlibet] is quite common, Coq
+    provides a built-in tactic, [exfalso], for applying it. *)
+
+Theorem ev_S_S_ev : forall n,
+  ev (S (S n)) -> ev n.
+Proof.
+  intros n H.
+  inversion H. assumption. Qed.
 
 Theorem ev_not_ev_S : forall n,
   ev n -> ~ ev (S n).
 Proof. 
   unfold not. intros n H. induction H. (* not n! *)
-  Case "ev 1". intros H. inversion H.
-  Case "ev (S (S (S n)))".
-    intros HevSSS.
-    apply ev_minus2 in HevSSS. simpl in HevSSS.
-    apply IHev in HevSSS. apply HevSSS.
+  -  (* ev 1 *) intros H. inversion H.
+  -  (* ev (S (S (S n))) *)
+    intros HevSSS. apply ev_S_S_ev in HevSSS.
+    apply IHev. assumption.
 Qed.
 (** [] *)
 
-(** Note that some theorems that are true in classical logic are _not_
-    provable in Coq's (constructive) logic.  E.g., let's look at how
-    this proof gets stuck... *)
-
-Theorem classic_double_neg : forall P : Prop,
-  ~~P -> P.
+Theorem not_true_is_false' : forall b : bool,
+  b <> true -> b = false.
 Proof.
-  (* WORKED IN CLASS *)
-  intros P H. unfold not in H. 
-  (* But now what? There is no way to "invent" evidence for [~P] 
-     from evidence for [P]. *) 
-  Abort.
+  intros [] H.
+  - (* b = false *)
+    unfold not in H.
+    exfalso.                (* <=== *)
+    apply H. reflexivity.
+  - (* b = true *) reflexivity.
+Qed.
 
-(** **** Exercise: 5 stars, advanced, optional (classical_axioms) *)
-(** For those who like a challenge, here is an exercise
-    taken from the Coq'Art book (p. 123).  The following five
-    statements are often considered as characterizations of
-    classical logic (as opposed to constructive logic, which is
-    what is "built in" to Coq).  We can't prove them in Coq, but
-    we can consistently add any one of them as an unproven axiom
-    if we wish to work in classical logic.  Prove that these five
-    propositions are equivalent. *)
+(* ================================================================= *)
+(** ** Truth *)
+
+(** Besides [False], Coq's standard library also defines [True], a
+    proposition that is trivially true. To prove it, we use the
+    predefined constant [I : True]: *)
+
+Lemma True_is_true : True.
+Proof. apply I. Qed.
 
 Definition peirce := forall P Q: Prop, 
   ((P->Q)->P)->P.
@@ -726,32 +794,39 @@ Qed.
 
 
 (** [] *)
+(** Unlike [False], which is used extensively, [True] is used quite
+    rarely, since it is trivial (and therefore uninteresting) to prove
+    as a goal, and it carries no useful information as a hypothesis.
+    But it can be quite useful when defining complex [Prop]s using
+    conditionals or as a parameter to higher-order [Prop]s.  We will
+    see examples of such uses of [True] later on.
+*)
 
-(* ########################################################## *)
-(** ** Inequality *)
+(* ================================================================= *)
+(** ** Logical Equivalence *)
 
-(** Saying [x <> y] is just the same as saying [~(x = y)]. *)
+(** The handy "if and only if" connective, which asserts that two
+    propositions have the same truth value, is just the conjunction of
+    two implications. *)
 
-Notation "x <> y" := (~ (x = y)) : type_scope.
+Module MyIff.
 
-(** Since inequality involves a negation, it again requires
-    a little practice to be able to work with it fluently.  Here
-    is one very useful trick.  If you are trying to prove a goal
-    that is nonsensical (e.g., the goal state is [false = true]),
-    apply the lemma [ex_falso_quodlibet] to change the goal to
-    [False].  This makes it easier to use assumptions of the form
-    [~P] that are available in the context -- in particular,
-    assumptions of the form [x<>y]. *)
+Definition iff (P Q : Prop) := (P -> Q) /\ (Q -> P).
 
-Theorem not_false_then_true : forall b : bool,
-  b <> false -> b = true.
+Notation "P <-> Q" := (iff P Q)
+                      (at level 95, no associativity)
+                      : type_scope.
+
+End MyIff.
+
+Theorem iff_sym : forall P Q : Prop,
+  (P <-> Q) -> (Q <-> P).
 Proof.
-  intros b H. destruct b.
-  Case "b = true". reflexivity.
-  Case "b = false".
-    unfold not in H.  
-    apply ex_falso_quodlibet.
-    apply H. reflexivity.   Qed.
+  (* WORKED IN CLASS *)
+  intros P Q [HAB HBA].
+  split.
+  - (* -> *) apply HBA.
+  - (* <- *) apply HAB.  Qed.
 
 Theorem Sn_ne_Sm__n_ne_m: forall n m: nat,
   S n <> S m -> n <> m.
@@ -762,16 +837,14 @@ Proof.
       unfold not in H. unfold not. intros H0. apply H. reflexivity.
       unfold not in H. unfold not. intros H0Sm. inversion H0Sm.
     intros m H. destruct m.
-      Case "0".
+      -  (* 0 *)
         unfold not in H.
         unfold not. intros HSn0.
-        apply (f_equal nat nat S) in HSn0.
-        apply H in HSn0. apply HSn0.
-      Case "S".
+        inversion HSn0.
+      -  (* S *)
         unfold not in H.
         unfold not. intros HSnSm.
-        apply (f_equal nat nat S) in HSnSm.
-        apply H in HSnSm. apply HSnSm.
+        inversion HSnSm. apply H. rewrite H1. reflexivity.
 Qed.
 
 (** **** Exercise: 2 stars (false_beq_nat) *)
@@ -781,16 +854,16 @@ Theorem false_beq_nat : forall n m : nat,
 Proof. 
   intros n.
   induction n as [|n'].
-    Case "n = 0". intros m H. destruct m as [|m'].
-      SCase "m = 0".
+    -  (* n = 0 *) intros m H. destruct m as [|m'].
+      +  (* m = 0 *)
         simpl. apply ex_falso_quodlibet.
         unfold not in H. apply H. reflexivity.
-      SCase "m = S m'".
+      +  (* m = S m' *)
         simpl. reflexivity.
-    Case "n = 1". intros m H. destruct m as [|m'].
-      SCase "m = 0".
+    -  (* n = 1 *) intros m H. destruct m as [|m'].
+      +  (* m = 0 *)
         simpl. reflexivity.
-      SCase "m = S m'".
+      +  (* m = S m' *)
         apply Sn_ne_Sm__n_ne_m in H.
         simpl. apply IHn'. apply H.
 Qed.
@@ -805,6 +878,36 @@ Proof.
   induction n.
     simpl. reflexivity.
     simpl. rewrite IHn. reflexivity.
+Qed.
+
+Lemma not_true_iff_false : forall b,
+  b <> true <-> b = false.
+Proof.
+  (* WORKED IN CLASS *)
+  intros b. split.
+  - (* -> *) apply not_true_is_false.
+  - (* <- *)
+    intros H. rewrite H. intros H'. inversion H'.
+Qed.
+
+(** **** Exercise: 1 star, optional (iff_properties)  *)
+(** Using the above proof that [<->] is symmetric ([iff_sym]) as
+    a guide, prove that it is also reflexive and transitive. *)
+
+Theorem iff_refl' : forall P : Prop,
+  P <-> P.
+Proof.
+  intros P. split.
+  - intros H. assumption.
+  - intros H. assumption.
+Qed.
+
+Theorem iff_trans' : forall P Q R : Prop,
+  (P <-> Q) -> (Q <-> R) -> (P <-> R).
+Proof.
+  intros P Q R HPQP HQRQ. destruct HPQP as [HPQ HQP]. destruct HQRQ as [HQR HRQ]. split.
+  - intros HP. apply HQR. apply HPQ. assumption.
+  - intros HR. apply HQP. apply HRQ. assumption.
 Qed.
 
 Theorem beq_nat_false : forall n m,
@@ -838,101 +941,123 @@ Proof.
       apply IHm' in H1. apply H1.
 Qed.
       
-(** **** Exercise: 2 stars, optional (ble_nat_false) *)
-Theorem ble_nat_false : forall n m,
-  ble_nat n m = false -> ~(n <= m).
-Proof.
-  intros n m H.
-  unfold not. intros Hle.
-  generalize dependent m.
-  induction n as [|n'].
-    intros m Hble Hle. destruct m.
-      simpl in Hble. inversion Hble.
-      simpl in Hble. inversion Hble.
-    intros m Hble Hle. destruct m as [|m'].
-      inversion Hle.
-      apply IHn' with m'. simpl in Hble. apply Hble.
-      apply Sn_le_Sm__n_le_m. apply Hle.
+Theorem leb_true : forall n m,
+  leb n m = true -> n <= m.
+Proof. intros n m Hnm.
+  generalize dependent n.
+  induction m.
+  - intros n Hn. destruct n. left. simpl in Hn. inversion Hn.
+  - intros n Hn. destruct n. apply le_0_n. apply le_n_S. apply IHm. simpl in Hn. assumption.
 Qed.
 
-(** [] *)
+Theorem lte_leb_true : forall n m,
+  n <= m -> leb n m = true.
+Proof. intros n m Hnm.
+  generalize dependent m.
+  induction n. 
+  - intros m Hm. reflexivity.
+  - intros m Hm. destruct m.
+    + inversion Hm.
+    + simpl. apply IHn. apply le_S_n. assumption.
+Qed.
 
+(** **** Exercise: 2 stars, optional (ble_nat_false) *)
+Theorem leb_false : forall n m,
+  leb n m = false -> ~(n <= m).
+Proof. intros n m Hnm.
+  intros H.
+  apply lte_leb_true in H. rewrite H in Hnm. inversion Hnm.
+Qed.
 
+(** Some of Coq's tactics treat [iff] statements specially, avoiding
+    the need for some low-level proof-state manipulation.  In
+    particular, [rewrite] and [reflexivity] can be used with [iff]
+    statements, not just equalities.  To enable this behavior, we need
+    to import a special Coq library that allows rewriting with other
+    formulas besides equality: *)
 
+Require Import Coq.Setoids.Setoid.
 
-(* ############################################################ *)
-(** * Existential Quantification *)
+(** Here is a simple example demonstrating how these tactics work with
+    [iff].  First, let's prove a couple of basic iff equivalences... *)
 
-(** Another critical logical connective is _existential
-    quantification_.  We can express it with the following
-    definition: *)
-
-Inductive ex (X:Type) (P : X->Prop) : Prop :=
-  ex_intro : forall (witness:X), P witness -> ex X P.
-
-(** That is, [ex] is a family of propositions indexed by a type [X]
-    and a property [P] over [X].  In order to give evidence for the
-    assertion "there exists an [x] for which the property [P] holds"
-    we must actually name a _witness_ -- a specific value [x] -- and
-    then give evidence for [P x], i.e., evidence that [x] has the
-    property [P]. 
-
-*)
-
-
-(** Coq's [Notation] facility can be used to introduce more
-    familiar notation for writing existentially quantified
-    propositions, exactly parallel to the built-in syntax for
-    universally quantified propositions.  Instead of writing [ex nat
-    ev] to express the proposition that there exists some number that
-    is even, for example, we can write [exists x:nat, ev x].  (It is
-    not necessary to understand exactly how the [Notation] definition
-    works.) *)
-
-Notation "'exists' x , p" := (ex _ (fun x => p))
-  (at level 200, x ident, right associativity) : type_scope.
-Notation "'exists' x : X , p" := (ex _ (fun x:X => p))
-  (at level 200, x ident, right associativity) : type_scope.
-
-(** We can use the usual set of tactics for
-    manipulating existentials.  For example, to prove an
-    existential, we can [apply] the constructor [ex_intro].  Since the
-    premise of [ex_intro] involves a variable ([witness]) that does
-    not appear in its conclusion, we need to explicitly give its value
-    when we use [apply]. *)
-
-Example exists_example_1 : exists n, n + (n * n) = 6.
+Lemma mult_0 : forall n m, n * m = 0 <-> n = 0 \/ m = 0.
 Proof.
-  apply ex_intro with (witness:=2). 
-  reflexivity.  Qed.
+  split.
+  - apply mult_eq_0.
+  - apply or_example.
+Qed.
 
-(** Note that we have to explicitly give the witness. *)
-
-(** Or, instead of writing [apply ex_intro with (witness:=e)] all the
-    time, we can use the convenient shorthand [exists e], which means
-    the same thing. *)
-
-Example exists_example_1' : exists n, n + (n * n) = 6.
+Lemma or_assoc :
+  forall P Q R : Prop, P \/ (Q \/ R) <-> (P \/ Q) \/ R.
 Proof.
-  exists 2. 
-  reflexivity.  Qed.
+  intros P Q R. split.
+  - intros [H | [H | H]].
+    + left. left. apply H.
+    + left. right. apply H.
+    + right. apply H.
+  - intros [[H | H] | H].
+    + left. apply H.
+    + right. left. apply H.
+    + right. right. apply H.
+Qed.
 
-(** Conversely, if we have an existential hypothesis in the
-    context, we can eliminate it with [inversion].  Note the use
-    of the [as...] pattern to name the variable that Coq
-    introduces to name the witness value and get evidence that
-    the hypothesis holds for the witness.  (If we don't
-    explicitly choose one, Coq will just call it [witness], which
-    makes proofs confusing.) *)
-  
+(** We can now use these facts with [rewrite] and [reflexivity] to
+    give smooth proofs of statements involving equivalences.  Here is
+    a ternary version of the previous [mult_0] result: *)
+
+Lemma mult_0_3 :
+  forall n m p, n * m * p = 0 <-> n = 0 \/ m = 0 \/ p = 0.
+Proof.
+  intros n m p.
+  rewrite mult_0. rewrite mult_0. rewrite or_assoc.
+  reflexivity.
+Qed.
+
+(** The [apply] tactic can also be used with [<->]. When given an
+    equivalence as its argument, [apply] tries to guess which side of
+    the equivalence to use. *)
+
+Lemma apply_iff_example :
+  forall n m : nat, n * m = 0 -> n = 0 \/ m = 0.
+Proof.
+  intros n m H. apply mult_0. apply H.
+Qed.
+
+(* ================================================================= *)
+(** ** Existential Quantification *)
+
+(** Another important logical connective is _existential
+    quantification_.  To say that there is some [x] of type [T] such
+    that some property [P] holds of [x], we write [exists x : T,
+    P]. As with [forall], the type annotation [: T] can be omitted if
+    Coq is able to infer from the context what the type of [x] should
+    be. *)
+
+(** To prove a statement of the form [exists x, P], we must show that
+    [P] holds for some specific choice of value for [x], known as the
+    _witness_ of the existential.  This is done in two steps: First,
+    we explicitly tell Coq which witness [t] we have in mind by
+    invoking the tactic [exists t].  Then we prove that [P] holds after
+    all occurrences of [x] are replaced by [t]. *)
+
+Lemma four_is_even : exists n : nat, 4 = n + n.
+Proof.
+  exists 2. reflexivity.
+Qed.
+
+(** Conversely, if we have an existential hypothesis [exists x, P] in
+    the context, we can destruct it to obtain a witness [x] and a
+    hypothesis stating that [P] holds of [x]. *)
+
 Theorem exists_example_2 : forall n,
   (exists m, n = 4 + m) ->
   (exists o, n = 2 + o).
 Proof.
-  intros n H.
-  inversion H as [m Hm]. 
-  exists (2 + m).  
-  apply Hm.  Qed. 
+  (* WORKED IN CLASS *)
+  intros n [m Hm]. (* note implicit [destruct] here *)
+  exists (2 + m).
+  apply Hm.  Qed.
 
 (** **** Exercise: 1 star, optional (english_exists) *)
 (** In English, what does the proposition 
@@ -942,7 +1067,7 @@ Proof.
 
 (* There is a natural number whose successor is beautiful. *)
 
-(** **** Exercise: 1 star (dist_not_exists) *)
+(** **** Exercise: 1 star (dist_not_exists)  *)
 (** Prove that "[P] holds for all [x]" implies "there is no [x] for
     which [P] does not hold." *)
 
@@ -974,14 +1099,14 @@ Proof.
   inversion Px as [HPx|HNPx]. apply HPx.
   unfold not in HNPx. 
   assert (He: exists x, (P x -> False)).
-  apply ex_intro with (witness:=x).
+  exists x.
   apply HNPx.
   apply Hexists in He.
   inversion He.
 Qed.
 (** [] *)
 
-(** **** Exercise: 2 stars (dist_exists_or) *)
+(** **** Exercise: 2 stars (dist_exists_or)  *)
 (** Prove that existential quantification distributes over
     disjunction. *)
 
@@ -990,312 +1115,565 @@ Theorem dist_exists_or : forall (X:Type) (P Q : X -> Prop),
 Proof.
   intros X P Q.
   split.
-  Case "exists (P \/ Q) -> (exists P) \/ (exists Q)".
+  -  (* exists (P \/ Q) -> (exists P) \/ (exists Q) *)
     intro Hexists. inversion Hexists as [x HPQ]. inversion HPQ.
-    left. apply ex_intro with (witness := x). apply H.
-    right. apply ex_intro with (witness := x). apply H.
-  Case "(exists P) \/ (exists Q) -> exists (P \/ Q)".
+    left. exists x. apply H.
+    right. exists x. apply H.
+  -  (* (exists P) \/ (exists Q) -> exists (P \/ Q) *)
     intro Hexists. inversion Hexists.
-    inversion H as [Hx HP]. apply ex_intro with (witness:=Hx). left. apply HP.
-    inversion H as [Hx HQ]. apply ex_intro with (witness:=Hx). right. apply HQ.
+    inversion H as [Hx HP]. exists Hx. left. apply HP.
+    inversion H as [Hx HQ]. exists Hx. right. apply HQ.
 Qed.
 (** [] *)
 
-(* Print dist_exists_or. *)
+(* ################################################################# *)
+(** * Programming with Propositions *)
 
+(** The logical connectives that we have seen provide a rich
+    vocabulary for defining complex propositions from simpler ones.
+    To illustrate, let's look at how to express the claim that an
+    element [x] occurs in a list [l].  Notice that this property has a
+    simple recursive structure: *)
 
-(* ###################################################### *)
-(** * Equality *)
+(** - If [l] is the empty list, then [x] cannot occur on it, so the
+      property "[x] appears in [l]" is simply false.
 
-(** Even Coq's equality relation is not built in.  It has (roughly)
-    the following inductive definition. *)
+    - Otherwise, [l] has the form [x' :: l'].  In this case, [x]
+      occurs in [l] if either it is equal to [x'] or it occurs in
+      [l'].
 
-(* (We enclose the definition in a module to avoid confusion with the
-    standard library equality, which we have used extensively
-    already.) *)
+    We can translate this directly into a straightforward recursive
+    function from taking an element and a list and returning a
+    proposition: *)
 
-Module MyEquality.
+Fixpoint In {A : Type} (x : A) (l : list A) : Prop :=
+  match l with
+  | [ ] => False
+  | x' :: l' => x' = x \/ In x l'
+  end.
 
-Inductive eq {X:Type} : X -> X -> Prop :=
-  refl_equal : forall x, eq x x.
-(** Standard infix notation: *)
+(** When [In] is applied to a concrete list, it expands into a
+    concrete sequence of nested disjunctions. *)
 
-Notation "x = y" := (eq x y) 
-                    (at level 70, no associativity) 
-                    : type_scope.
-
-(** The definition of [=] is a bit subtle.  The way to think about it
-    is that, given a set [X], it defines a _family_ of propositions
-    "[x] is equal to [y]," indexed by pairs of values ([x] and [y])
-    from [X].  There is just one way of constructing evidence for
-    members of this family: applying the constructor [refl_equal] to a
-    type [X] and a value [x : X] yields evidence that [x] is equal to
-    [x]. *)
-
-
-(** **** Exercise: 2 stars (leibniz_equality) *)
-(** The inductive definitions of equality corresponds to _Leibniz equality_: 
-   what we mean when we say "[x] and [y] are equal" is that every 
-   property on [P] that is true of [x] is also true of [y].  *)
-
-Lemma leibniz_equality : forall (X : Type) (x y: X), 
- x = y -> forall P : X -> Prop, P x -> P y.
+Example In_example_1 : In 4 [1; 2; 3; 4; 5].
 Proof.
-  intros X x y Hxeqy P Px.
-  induction Hxeqy. apply Px.
+  (* WORKED IN CLASS *)
+  simpl. right. right. right. left. reflexivity.
+Qed.
+
+Example In_example_2 :
+  forall n, In n [2; 4] ->
+  exists n', n = 2 * n'.
+Proof.
+  (* WORKED IN CLASS *)
+  simpl.
+  intros n [H | [H | []]].
+  - exists 1. rewrite <- H. reflexivity.
+  - exists 2. rewrite <- H. reflexivity.
+Qed.
+(** (Notice the use of the empty pattern to discharge the last case
+    _en passant_.) *)
+
+(** We can also prove more generic, higher-level lemmas about [In].
+
+    Note, in the next, how [In] starts out applied to a variable and
+    only gets expanded when we do case analysis on this variable: *)
+
+Lemma In_map :
+  forall (A B : Type) (f : A -> B) (l : list A) (x : A),
+    In x l ->
+    In (f x) (map f l).
+Proof.
+  intros A B f l x.
+  induction l as [|x' l' IHl'].
+  - (* l = nil, contradiction *)
+    simpl. intros [].
+  - (* l = x' :: l' *)
+    simpl. intros [H | H].
+    + rewrite H. left. reflexivity.
+    + right. apply IHl'. apply H.
+Qed.
+
+(** This way of defining propositions recursively, though convenient
+    in some cases, also has some drawbacks.  In particular, it is
+    subject to Coq's usual restrictions regarding the definition of
+    recursive functions, e.g., the requirement that they be "obviously
+    terminating."  In the next chapter, we will see how to define
+    propositions _inductively_, a different technique with its own set
+    of strengths and limitations. *)
+
+Lemma in_map_cons :
+    forall (A : Type) (l : list A) (x y : A),
+    In y l -> In y (x::l).
+Proof.
+  intros A l.
+  induction l.
+  - intros x y H. inversion H.
+  - intros x' y H. inversion H.
+    + simpl. right. left. assumption.
+    + simpl. right. right. assumption.
+Qed.
+
+
+Lemma and_or_distr :
+  forall A B C, (A /\ (B \/ C)) <-> (A /\ B) \/ (A /\ C).
+Proof.
+  intros A B C. split.
+  - intros H. inversion H. inversion H1. 
+    + left; split; assumption. 
+    + right; split; assumption.
+  -  intros H. split.
+    + inversion H. inversion H0. assumption. inversion H0. assumption.
+    + inversion H. inversion H0. left. assumption. inversion H0. right. assumption.
+Qed.
+
+
+Lemma exists_or_distr : forall (X : Type) (A B : X -> Prop),
+  (exists x, (A x \/ B x)) -> (exists x, A x) \/ (exists x, B x).
+Proof.
+  intros X A B H.
+  inversion H. inversion H0.
+  left. exists x. assumption.
+  right. exists x. assumption.
+Qed.
+
+(** **** Exercise: 2 stars (In_map_iff)  *)
+Lemma In_map_iff :
+  forall (A B : Type) (f : A -> B) (l : list A) (y : B),
+    In y (map f l) <->
+    exists x, f x = y /\ In x l.
+Proof.
+  intros A B f l.
+  split.
+  - intros H. generalize dependent y. induction l.
+      + intros y H. inversion H.
+      + intros y H. inversion H.
+        * exists x. split. assumption. simpl. left. reflexivity.
+        * assert (Hxl := IHl y H0). inversion Hxl. exists x0. inversion H1. split.
+          assumption.
+          apply in_map_cons. assumption.
+  - intros H. generalize dependent y. induction l.
+      + intros y H. inversion H. inversion H0. inversion H2.
+      + intros y H. simpl in H.
+        assert (HB: (exists x0 : A, f x0 = y /\ x = x0) \/ (exists x0 : A, f x0 = y /\ In x0 l)).
+          apply exists_or_distr. inversion H. exists x0. apply and_or_distr. assumption.
+          inversion HB. simpl. inversion H0. inversion H1. subst. left. reflexivity.
+          simpl. right. apply IHl. assumption.
 Qed.
 (** [] *)
 
-(** We can use
-    [refl_equal] to construct evidence that, for example, [2 = 2].
-    Can we also use it to construct evidence that [1 + 1 = 2]?  Yes:
-    indeed, it is the very same piece of evidence!  The reason is that
-    Coq treats as "the same" any two terms that are _convertible_
-    according to a simple set of computation rules.  These rules,
-    which are similar to those used by [Eval compute], include
-    evaluation of function application, inlining of definitions, and
-    simplification of [match]es.
-*)
-
-Lemma four: 2 + 2 = 1 + 3. 
+Lemma in_cons_conj : forall (A:Type) (l l':list A) (a b:A),
+  In a l \/ In a (b::l') <-> In a (b::l) \/ In a l'.
 Proof.
-  apply refl_equal. 
+  intros A l l' a b.
+  split; intros H.
+  - inversion H. simpl. left. right. assumption.
+    inversion H0. simpl. left. left. assumption. right. assumption.
+  - inversion H. inversion H0. simpl. right. left. assumption.
+    left. assumption. simpl. right. right. assumption.
 Qed.
 
-(** The [reflexivity] tactic that we have used to prove equalities up
-to now is essentially just short-hand for [apply refl_equal]. *)
-
-End MyEquality.
-
-
-(* ###################################################### *)
-(** * Evidence-carrying booleans. *)
-
-(** So far we've seen two different forms of equality predicates:
-[eq], which produces a [Prop], and
-the type-specific forms, like [beq_nat], that produce [boolean]
-values.  The former are more convenient to reason about, but
-we've relied on the latter to let us use equality tests 
-in _computations_.  While it is straightforward to write lemmas
-(e.g. [beq_nat_true] and [beq_nat_false]) that connect the two forms,
-using these lemmas quickly gets tedious. 
-
-It turns out that we can get the benefits of both forms at once 
-by using a construct called [sumbool]. *)
-
-Inductive sumbool (A B : Prop) : Set :=
- | left : A -> sumbool A B 
- | right : B -> sumbool A B.
-
-Notation "{ A } + { B }" :=  (sumbool A B) : type_scope.
-
-(** Think of [sumbool] as being like the [boolean] type, but instead
-of its values being just [true] and [false], they carry _evidence_
-of truth or falsity. This means that when we [destruct] them, we
-are left with the relevant evidence as a hypothesis -- just as with [or].
-(In fact, the definition of [sumbool] is almost the same as for [or].
-The only difference is that values of [sumbool] are declared to be in
-[Set] rather than in [Prop]; this is a technical distinction 
-that allows us to compute with them.) *) 
-
-(** Here's how we can define a [sumbool] for equality on [nat]s *)
-
-Theorem eq_nat_dec : forall n m : nat, {n = m} + {n <> m}.
+(** **** Exercise: 2 stars (in_app_iff)  *)
+Lemma in_app_iff : forall A l l' (a:A),
+  In a (l++l') <-> In a l \/ In a l'.
 Proof.
-  intros n.
-  induction n as [|n'].
-  Case "n = 0".
-    intros m.
-    destruct m as [|m'].
-    SCase "m = 0".
-      left. reflexivity.
-    SCase "m = S m'".
-      right. intros contra. inversion contra.
-  Case "n = S n'".
-    intros m.
-    destruct m as [|m'].
-    SCase "m = 0".
-      right. intros contra. inversion contra.
-    SCase "m = S m'". 
-      destruct IHn' with (m := m') as [eq | neq].
-      left. apply f_equal.  apply eq.
-      right. intros Heq. inversion Heq as [Heq']. apply neq. apply Heq'.
-Defined. 
-
-(** Read as a theorem, this says that equality on [nat]s is decidable:
-that is, given two [nat] values, we can always produce either 
-evidence that they are equal or evidence that they are not.
-Read computationally, [eq_nat_dec] takes two [nat] values and returns
-a [sumbool] constructed with [left] if they are equal and [right] 
-if they are not; this result can be tested with a [match] or, better,
-with an [if-then-else], just like a regular [boolean]. 
-(Notice that we ended this proof with [Defined] rather than [Qed]. 
-The only difference this makes is that the proof becomes _transparent_,
-meaning that its definition is available when Coq tries to do reductions,
-which is important for the computational interpretation.)
-
-Here's a simple example illustrating the advantages of the [sumbool] form. *)
-
-Definition override' {X: Type} (f: nat->X) (k:nat) (x:X) : nat->X:=
-  fun (k':nat) => if eq_nat_dec k k' then x else f k'.
-
-Theorem override_same' : forall (X:Type) x1 k1 k2 (f : nat->X),
-  f k1 = x1 -> 
-  (override' f k1 x1) k2 = f k2.
-Proof.
-  intros X x1 k1 k2 f. intros Hx1.
-  unfold override'.
-  destruct (eq_nat_dec k1 k2).   (* observe what appears as a hypothesis *)
-  Case "k1 = k2".
-    rewrite <- e.
-    symmetry. apply Hx1.
-  Case "k1 <> k2". 
-    reflexivity.  Qed.
-
-(** Compare this to the more laborious proof (in MoreCoq.v) for the 
-   version of [override] defined using [beq_nat], where we had to
-   use the auxiliary lemma [beq_nat_true] to convert a fact about booleans
-   to a Prop. *)
-
-
-(** **** Exercise: 1 star (override_shadow') *)
-Theorem override_shadow' : forall (X:Type) x1 x2 k1 k2 (f : nat->X),
-  (override' (override' f k1 x2) k1 x1) k2 = (override' f k1 x1) k2.
-Proof.
-  intros X x1 x2 k1 k2 f.
-  unfold override'.
-  destruct (eq_nat_dec k1 k2).
-  Case "k1 = k2". reflexivity.
-  Case "k1 <> k2". reflexivity.
+  intros A l l' a.
+  split.
+  - (* -> *)
+    intros H. generalize dependent l'. generalize dependent a.
+    induction l.
+      +  intros a l' H. simpl in H. right. assumption.
+      + intros a l' H. simpl. 
+        simpl in H. inversion H.
+          left. left. assumption.
+          rewrite <- or_assoc. right. apply IHl. assumption.
+ - (* <- *)
+    intros H. generalize dependent l'. generalize dependent a.
+    induction l.
+    + intros a l' H. inversion H. inversion H0. simpl. assumption.
+    + intros a l' H. assert (In a l \/ In a (x :: l')). inversion H. apply in_cons_conj in H. assumption. apply in_cons_conj. assumption. simpl. simpl in H. apply or_assoc in H. inversion H.
+      * left. assumption.
+      *  right. apply IHl. assumption.
 Qed.
 (** [] *)
 
-(* ####################################################### *)
-(** ** Inversion, Again (Advanced) *)
+(** **** Exercise: 3 stars (All)  *)
+(** Recall that functions returning propositions can be seen as
+    _properties_ of their arguments. For instance, if [P] has type
+    [nat -> Prop], then [P n] states that property [P] holds of [n].
 
-(** We've seen [inversion] used with both equality hypotheses and
-    hypotheses about inductively defined propositions.  Now that we've
-    seen that these are actually the same thing, we're in a position
-    to take a closer look at how [inversion] behaves...
+    Drawing inspiration from [In], write a recursive function [All]
+    stating that some property [P] holds of all elements of a list
+    [l]. To make sure your definition is correct, prove the [All_In]
+    lemma below.  (Of course, your definition should _not_ just
+    restate the left-hand side of [All_In].) *)
 
-    In general, the [inversion] tactic
+Fixpoint All {T : Type} (P : T -> Prop) (l : list T) : Prop :=
+  match l with
+   | (x :: xs) => P x /\ (All P xs)
+   | [] => True
+  end.
 
-    - takes a hypothesis [H] whose type [P] is inductively defined,
-      and
-
-    - for each constructor [C] in [P]'s definition,
-
-      - generates a new subgoal in which we assume [H] was
-        built with [C],
-
-      - adds the arguments (premises) of [C] to the context of
-        the subgoal as extra hypotheses,
-
-      - matches the conclusion (result type) of [C] against the
-        current goal and calculates a set of equalities that must
-        hold in order for [C] to be applicable,
-        
-      - adds these equalities to the context (and, for convenience,
-        rewrites them in the goal), and
-
-      - if the equalities are not satisfiable (e.g., they involve
-        things like [S n = O]), immediately solves the subgoal. *)
-
-(** _Example_: If we invert a hypothesis built with [or], there are two
-   constructors, so two subgoals get generated.  The
-   conclusion (result type) of the constructor ([P \/ Q]) doesn't
-   place any restrictions on the form of [P] or [Q], so we don't get
-   any extra equalities in the context of the subgoal.
-
-   _Example_: If we invert a hypothesis built with [and], there is
-   only one constructor, so only one subgoal gets generated.  Again,
-   the conclusion (result type) of the constructor ([P /\ Q]) doesn't
-   place any restrictions on the form of [P] or [Q], so we don't get
-   any extra equalities in the context of the subgoal.  The
-   constructor does have two arguments, though, and these can be seen
-   in the context in the subgoal.
-
-   _Example_: If we invert a hypothesis built with [eq], there is
-   again only one constructor, so only one subgoal gets generated.
-   Now, though, the form of the [refl_equal] constructor does give us
-   some extra information: it tells us that the two arguments to [eq]
-   must be the same!  The [inversion] tactic adds this fact to the
-   context.  *)
-
-
-(** **** Exercise: 1 star, optional (dist_and_or_eq_implies_and) *)  
-Lemma dist_and_or_eq_implies_and : forall P Q R,
-       P /\ (Q \/ R) /\ Q = R -> P/\Q.
+Lemma All_In :
+  forall T (P : T -> Prop) (l : list T),
+    (forall x, In x l -> P x) <->
+    All P l.
 Proof.
-  intros P Q R H.
-  inversion H.
-  inversion H1.
-  inversion H2.
-  apply conj. apply H0. apply H4.
-  apply conj. apply H0. rewrite H3. apply H4.
+  intros T P l.
+  split.
+  - intros H.
+    induction l.
+      simpl. apply I.
+      simpl. split.
+        apply H. simpl. left. reflexivity.
+        apply IHl. intros x0 Hx0. apply H. simpl. right. assumption.
+  
+  
+  - induction l; intros H x' Hin. inversion Hin.
+       simpl in H. inversion H.
+       simpl in Hin.
+       inversion Hin. subst. assumption.
+       apply IHl. assumption. assumption.
 Qed.
-
 (** [] *)
 
+(** **** Exercise: 3 stars (combine_odd_even)  *)
+(** Complete the definition of the [combine_odd_even] function below.
+    It takes as arguments two properties of numbers, [Podd] and
+    [Peven], and it should return a property [P] such that [P n] is
+    equivalent to [Podd n] when [n] is odd and equivalent to [Peven n]
+    otherwise. *)
+
+Definition combine_odd_even (Podd Peven : nat -> Prop) : nat -> Prop :=
+  fun (n: nat) => if oddb n then Podd n else Peven n.
+
+
+(** To test your definition, prove the following facts: *)
+
+Theorem combine_odd_even_intro :
+  forall (Podd Peven : nat -> Prop) (n : nat),
+    (oddb n = true -> Podd n) ->
+    (oddb n = false -> Peven n) ->
+    combine_odd_even Podd Peven n.
+Proof.
+  intros Podd Peven n Hodd Heven.
+  unfold combine_odd_even.
+  destruct (oddb n).
+    apply Hodd. reflexivity.
+    apply Heven. reflexivity.
+Qed.
+
+Theorem combine_odd_even_elim_odd :
+  forall (Podd Peven : nat -> Prop) (n : nat),
+    combine_odd_even Podd Peven n ->
+    oddb n = true ->
+    Podd n.
+Proof.
+  intros Podd Peven n Hcomb Hodd.
+  unfold combine_odd_even in Hcomb. rewrite Hodd in Hcomb. assumption.
+Qed.
+
+Theorem combine_odd_even_elim_even :
+  forall (Podd Peven : nat -> Prop) (n : nat),
+    combine_odd_even Podd Peven n ->
+    oddb n = false ->
+    Peven n.
+Proof.
+  intros Podd Peven n Hcomb Hoddb.
+  unfold combine_odd_even in Hcomb. rewrite Hoddb in Hcomb. assumption.
+Qed.
+(** [] *)
+
+(* ################################################################# *)
+(** * Applying Theorems to Arguments *)
+
+(** One feature of Coq that distinguishes it from many other proof
+    assistants is that it treats _proofs_ as first-class objects.
+
+    There is a great deal to be said about this, but it is not
+    necessary to understand it in detail in order to use Coq.  This
+    section gives just a taste, while a deeper exploration can be
+    found in the optional chapters [ProofObjects] and
+    [IndPrinciples]. *)
+
+(** We have seen that we can use the [Check] command to ask Coq to
+    print the type of an expression.  We can also use [Check] to ask
+    what theorem a particular identifier refers to. *)
+
+Check plus_comm.
+(* ===> forall n m : nat, n + m = m + n *)
+
+(** Coq prints the _statement_ of the [plus_comm] theorem in the same
+    way that it prints the _type_ of any term that we ask it to
+    [Check].  Why?
+
+    The reason is that the identifier [plus_comm] actually refers to a
+    _proof object_ -- a data structure that represents a logical
+    derivation establishing of the truth of the statement [forall n m
+    : nat, n + m = m + n].  The type of this object _is_ the statement
+    of the theorem that it is a proof of. *)
+
+(** Intuitively, this makes sense because the statement of a theorem
+    tells us what we can use that theorem for, just as the type of a
+    computational object tells us what we can do with that object --
+    e.g., if we have a term of type [nat -> nat -> nat], we can give
+    it two [nat]s as arguments and get a [nat] back.  Similarly, if we
+    have an object of type [n = m -> n + n = m + m] and we provide it
+    an "argument" of type [n = m], we can derive [n + n = m + m]. *)
+
+(** Operationally, this analogy goes even further: by applying a
+    theorem, as if it were a function, to hypotheses with matching
+    types, we can specialize its result without having to resort to
+    intermediate assertions.  For example, suppose we wanted to prove
+    the following result: *)
+
+Lemma plus_comm3 :
+  forall n m p, n + (m + p) = (p + m) + n.
+
+(** It appears at first sight that we ought to be able to prove this
+    by rewriting with [plus_comm] twice to make the two sides match.
+    The problem, however, is that the second [rewrite] will undo the
+    effect of the first. *)
+
+Proof.
+  intros n m p.
+  rewrite plus_comm.
+  rewrite plus_comm.
+  (* We are back where we started... *)
+Abort.
+
+(** One simple way of fixing this problem, using only tools that we
+    already know, is to use [assert] to derive a specialized version
+    of [plus_comm] that can be used to rewrite exactly where we
+    want. *)
+
+Lemma plus_comm3_take2 :
+  forall n m p, n + (m + p) = (p + m) + n.
+Proof.
+  intros n m p.
+  rewrite plus_comm.
+  assert (H : m + p = p + m).
+  { rewrite plus_comm. reflexivity. }
+  rewrite H.
+  reflexivity.
+Qed.
+
+(** A more elegant alternative is to apply [plus_comm] directly to the
+    arguments we want to instantiate it with, in much the same way as
+    we apply a polymorphic function to a type argument. *)
+
+Lemma plus_comm3_take3 :
+  forall n m p, n + (m + p) = (p + m) + n.
+Proof.
+  intros n m p.
+  rewrite plus_comm.
+  rewrite (plus_comm m).
+  reflexivity.
+Qed.
+
+(** You can "use theorems as functions" in this way with almost all
+    tactics that take a theorem name as an argument.  Note also that
+    theorem application uses the same inference mechanisms as function
+    application; thus, it is possible, for example, to supply
+    wildcards as arguments to be inferred, or to declare some
+    hypotheses to a theorem as implicit by default.  These features
+    are illustrated in the proof below. *)
+
+Example lemma_application_ex :
+  forall {n : nat} {ns : list nat},
+    In n (map (fun m => m * 0) ns) ->
+    n = 0.
+Proof.
+  intros n ns H.
+  destruct (proj1 _ _ (In_map_iff _ _ _ _ _) H)
+           as [m [Hm _]].
+  rewrite mult_0_r in Hm. rewrite <- Hm. reflexivity.
+Qed.
+
+(** We will see many more examples of the idioms from this section in
+    later chapters. *)
+
+(* ################################################################# *)
+(** * Coq vs. Set Theory *)
+
+(** Coq's logical core, the _Calculus of Inductive Constructions_,
+    differs in some important ways from other formal systems that are
+    used by mathematicians for writing down precise and rigorous
+    proofs.  For example, in the most popular foundation for
+    mainstream paper-and-pencil mathematics, Zermelo-Fraenkel Set
+    Theory (ZFC), a mathematical object can potentially be a member of
+    many different sets; a term in Coq's logic, on the other hand, is
+    a member of at most one type.  This difference often leads to
+    slightly different ways of capturing informal mathematical
+    concepts, but these are, by and large, quite natural and easy to
+    work with.  For example, instead of saying that a natural number
+    [n] belongs to the set of even numbers, we would say in Coq that
+    [ev n] holds, where [ev : nat -> Prop] is a property describing
+    even numbers.
+
+    However, there are some cases where translating standard
+    mathematical reasoning into Coq can be either cumbersome or
+    sometimes even impossible, unless we enrich the core logic with
+    additional axioms.  We conclude this chapter with a brief
+    discussion of some of the most significant differences between the
+    two worlds. *)
+
+(* ================================================================= *)
+(** ** Functional Extensionality *)
+
+(** The equality assertions that we have seen so far mostly have
+    concerned elements of inductive types ([nat], [bool], etc.).  But
+    since Coq's equality operator is polymorphic, these are not the
+    only possibilities -- in particular, we can write propositions
+    claiming that two _functions_ are equal to each other: *)
+
+Example function_equality_ex1 : plus 3 = plus (pred 4).
+Proof. reflexivity. Qed.
+
+(** In common mathematical practice, two functions [f] and [g] are
+    considered equal if they produce the same outputs:
+
+    (forall x, f x = g x) -> f = g
+
+    This is known as the principle of _functional extensionality_.
+
+    Informally speaking, an "extensional property" is one that
+    pertains to an object's observable behavior.  Thus, functional
+    extensionality simply means that a function's identity is
+    completely determined by what we can observe from it -- i.e., in
+    Coq terms, the results we obtain after applying it.
+
+    Functional extensionality is not part of Coq's basic axioms.  This
+    means that some "reasonable" propositions are not provable. *)
+
+Example function_equality_ex2 :
+  (fun x => plus x 1) = (fun x => plus 1 x).
+Proof.
+   (* Stuck *)
+Abort.
+
+(** However, we can add functional extensionality to Coq's core logic
+    using the [Axiom] command. *)
+
+Axiom functional_extensionality : forall {X Y: Type}
+                                    {f g : X -> Y},
+  (forall (x:X), f x = g x) -> f = g.
+
+(** Using [Axiom] has the same effect as stating a theorem and
+    skipping its proof using [Admitted], but it alerts the reader that
+    this isn't just something we're going to come back and fill in
+    later!
+
+    We can now invoke functional extensionality in proofs: *)
+
+Example function_equality_ex2 :
+  (fun x => plus x 1) = (fun x => plus 1 x).
+Proof.
+  apply functional_extensionality. intros x.
+  apply plus_comm.
+Qed.
+
+(** Naturally, we must be careful when adding new axioms into Coq's
+    logic, as they may render it _inconsistent_ -- that is, they may
+    make it possible to prove every proposition, including [False]!
+
+    Unfortunately, there is no simple way of telling whether an axiom
+    is safe to add: hard work is generally required to establish the
+    consistency of any particular combination of axioms.
+
+    However, it is known that adding functional extensionality, in
+    particular, _is_ consistent.
+
+    To check whether a particular proof relies on any additional
+    axioms, use the [Print Assumptions] command.  *)
+
+Print Assumptions function_equality_ex2.
+(* ===>
+     Axioms:
+     functional_extensionality :
+         forall (X Y : Type) (f g : X -> Y),
+                (forall x : X, f x = g x) -> f = g *)
+
+(** **** Exercise: 4 stars (tr_rev)  *)
+(** One problem with the definition of the list-reversing function
+    [rev] that we have is that it performs a call to [app] on each
+    step; running [app] takes time asymptotically linear in the size
+    of the list, which means that [rev] has quadratic running time.
+    We can improve this with the following definition: *)
+
+Fixpoint rev_append' {X} (l1 l2 : list X) : list X :=
+  match l1 with
+  | [] => l2
+  | x :: l1' => rev_append' l1' (x :: l2)
+  end.
+
+Definition tr_rev {X} (l : list X) : list X :=
+  rev_append' l [].
+
+(** This version is said to be _tail-recursive_, because the recursive
+    call to the function is the last operation that needs to be
+    performed (i.e., we don't have to execute [++] after the recursive
+    call); a decent compiler will generate very efficient code in this
+    case.  Prove that the two definitions are indeed equivalent. *)
+
+Lemma rev_append_app : forall (X:Type) (l:list X) (t:list X), rev_append' l t = (rev_append' l []) ++ t.
+Proof. intros X l. induction l.
+  intros x. reflexivity.
+  intros x'.
+  simpl. 
+  replace (rev_append' l [x]) with (rev_append' l [] ++ [x]). rewrite IHl. rewrite <- app_assoc. reflexivity.
+  rewrite <- IHl. reflexivity.
+Qed.
+
+Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
+  match l with
+  | [] => true
+  | x :: l' => andb (test x) (forallb test l')
+  end.
 
 
 
-(* ####################################################### *)
-(** * Additional Exercises *)
+Lemma tr_rev_correct : forall X, @tr_rev X = @rev X.
+Proof. intros X. apply functional_extensionality. intros l.
+  unfold tr_rev.
+  induction l. reflexivity.
+  simpl.
+  rewrite <- IHl. rewrite rev_append_app. reflexivity.
+Qed.
 
-(** **** Exercise: 3 stars (all_forallb) *)
-(** Inductively define a property [all] of lists, parameterized by a
-    type [X] and a property [P : X -> Prop], such that [all X P l]
-    asserts that [P] is true for every element of the list [l]. *)
 
 Inductive all (X : Type) (P : X -> Prop) : list X -> Prop :=
   | all_nil : all X P []
   | all_cons : forall x xs, P x -> all X P xs -> all X P (x::xs).
-
-(** Recall the function [forallb], from the exercise
-    [forall_exists_challenge] in chapter [Poly]: *)
-
-Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
-  match l with
-    | [] => true
-    | x :: l' => andb (test x) (forallb test l')
-  end.
-
-(** Using the property [all], write down a specification for [forallb],
-    and prove that it satisfies the specification. Try to make your 
-    specification as precise as possible.
-
-    Are there any important properties of the function [forallb] which
-    are not captured by your specification? *)
 
 Theorem forallb_all: forall X xs f,
   {forallb f xs = true <->     all X (fun x => f x = true) xs} +
   {forallb f xs = false <-> ~ (all X (fun x => f x = true) xs)}.
 Proof. intros X l f.
   induction l as [|x xs].
-    Case "l = []".
+    -  (* l = [] *)
       simpl. left. split.
         intros Htrue. apply all_nil.
         intros Hall. reflexivity.
-    Case "l = x::xs".
+    -  (* l = x::xs *)
       simpl. destruct (f x) eqn:Hfx.
-        SCase "f x = true".
+        +  (* f x = true *)
           simpl. inversion IHxs.
-            SSCase "forall b f xs = true".
+            *  (* forall b f xs = true *)
               inversion H.
               left. split.
                 intros Hforall. apply all_cons. apply Hfx. apply H0. apply Hforall.
                 intros Hall. apply H1. inversion Hall. apply H5.
-            SSCase "forall b f xs = false".
+            *  (* forall b f xs = false *)
               inversion H. 
               right. split.
-                SSSCase "forall = false -> ~all".
+                  (* forall = false -> ~all *)
                   intros Hforall. unfold not.
                   intros Hall. inversion Hall.
                   apply H0 in Hforall. unfold not in Hforall.
                   assert (Hfalse := H5).
                   apply Hforall in H5. apply H5.
-                SSSCase "~all -> forall = false".
+                  (* ~all -> forall = false *)
                   intros Hall.
                   apply H1. unfold not.
                   intros Hallxs.
@@ -1303,7 +1681,7 @@ Proof. intros X l f.
                   assert (Hallxxs: all X (fun x: X => f x = true) (x::xs)).
                     apply all_cons. apply Hfx. apply Hallxs.
                   apply Hall in Hallxxs. apply Hallxxs.
-        SCase "f x = false".
+        +  (* f x = false *)
           simpl. left. split.
             intros Hft. inversion Hft.
             intros Hall. inversion Hall. rewrite Hfx in H1. inversion H1.
@@ -1311,30 +1689,8 @@ Qed.
 
 (** [] *)
 
-(** **** Exercise: 4 stars, advanced (filter_challenge) *)
-(** One of the main purposes of Coq is to prove that programs match
-    their specifications.  To this end, let's prove that our
-    definition of [filter] matches a specification.  Here is the
-    specification, written out informally in English.
-
-    Suppose we have a set [X], a function [test: X->bool], and a list
-    [l] of type [list X].  Suppose further that [l] is an "in-order
-    merge" of two lists, [l1] and [l2], such that every item in [l1]
-    satisfies [test] and no item in [l2] satisfies test.  Then [filter
-    test l = l1].
-
-    A list [l] is an "in-order merge" of [l1] and [l2] if it contains
-    all the same elements as [l1] and [l2], in the same order as [l1]
-    and [l2], but possibly interleaved.  For example, 
-    [1,4,6,2,3]
-    is an in-order merge of
-    [1,6,2]
-    and
-    [4,3].
-    Your job is to translate this specification into a Coq theorem and
-    prove it.  (Hint: You'll need to begin by defining what it means
-    for one list to be a merge of two others.  Do this with an
-    inductive relation, not a [Fixpoint].)  *)
+(* ================================================================= *)
+(** ** Propositions and Booleans *)
 
 Inductive in_order_merge (X:Type) : list X -> list X -> list X -> Prop :=
   | in_order_merge_nil : in_order_merge X [] [] []
@@ -1344,6 +1700,8 @@ Inductive in_order_merge (X:Type) : list X -> list X -> list X -> Prop :=
   | in_order_merge_cons2 : forall h2 l1 t2 l,
                            in_order_merge X l1 t2 l ->
                            in_order_merge X l1 (h2::t2) (h2 :: l).
+
+
 
 Theorem filter_challenge: forall X l1 l2 f l,
   in_order_merge X l1 l2 l ->
@@ -1355,29 +1713,29 @@ Proof.
   generalize dependent l2.
   generalize dependent l1.
   induction l as [|hl tl].
-    Case "l = []". intros l1 Halltrue l2 Hmerge Hallfalse.
+    -  (* l = [] *) intros l1 Halltrue l2 Hmerge Hallfalse.
       simpl. inversion Hmerge. reflexivity.
-    Case "l = hl :: tl". intros l1 Halltrue l2 Hmerge Hallfalse.
+    -  (* l = hl :: tl *) intros l1 Halltrue l2 Hmerge Hallfalse.
       simpl. destruct (f hl) eqn:Hfhead.
-        SCase "true".
+        +  (* true *)
           inversion Hmerge.
-          SSCase "head from l1".
+          *  (* head from l1 *)
             rewrite IHtl with (l1:=t1) (l2:=l2).
             reflexivity.
             rewrite <- H0 in Halltrue.
             inversion Halltrue. apply H7.
             apply H2. apply Hallfalse.
-          SSCase "head from l2".
+          *  (* head from l2 *)
             rewrite <- H1 in Hallfalse.
             inversion Hallfalse.
             rewrite H in H6. rewrite H6 in Hfhead. inversion Hfhead.
-        SCase "false".
+        +  (* false *)
           inversion Hmerge.
-          SSCase "head from l1".
+          *  (* head from l1 *)
             rewrite <- H0 in Halltrue.
             inversion Halltrue.
             rewrite H in H6. rewrite H6 in Hfhead. inversion Hfhead.
-          SSCase "head from t2".
+          *  (* head from t2 *)
             rewrite IHtl with (l1:=l1) (l2:=t2).
             reflexivity.
             apply Halltrue.
@@ -1387,14 +1745,67 @@ Proof.
             rewrite <- H1 in H6. inversion H6. rewrite <- H9. apply H5.
 Qed.
 
-(** [] *)
+Inductive subseq {X:Type} : (list X) -> (list X) -> Prop :=
+  | subseq_empty : forall xs, subseq [] xs
+  | subseq_head : forall x xs ys, subseq xs ys -> subseq (x::xs) (x::ys)
+  | subseq_tail: forall x xs ys, subseq xs ys -> subseq xs (x::ys).
 
-(** **** Exercise: 5 stars, advanced, optional (filter_challenge_2) *)
-(** A different way to formally characterize the behavior of [filter]
-    goes like this: Among all subsequences of [l] with the property
-    that [test] evaluates to [true] on all their members, [filter test
-    l] is the longest.  Express this claim formally and prove it. *)
+Theorem subseq_reflexive: forall (X:Type) (xs:list X),
+  subseq xs xs.
+Proof.
+  intros X xs.
+  induction xs.
+    apply subseq_empty.
+    apply subseq_head. apply IHxs.
+Qed.
 
+Theorem subseq_app: forall (X:Type) (l1 l2 l3:list X),
+  subseq l1 l2 -> subseq l1 (l2 ++ l3).
+Proof.
+  intros X l1 l2 l3 H.
+  generalize dependent l3.
+  generalize dependent l1.
+  induction l2 as [|h2 t2].
+  - (* l2 = [] *)
+    intros  l1 H l3.
+    destruct l1.
+      apply subseq_empty.
+      inversion H.
+  - (* l2 = h2 :: t2 *)
+    intros l1 H l3.
+    destruct l1 as [|h1 t1].
+      + (* l1 = [] *)
+        apply subseq_empty.
+      + (* l1 = h1 :: t1 *)
+        inversion H.
+        * (* subseq_head *)
+          simpl.  apply subseq_head. apply IHt2.
+          apply H1.
+        * (* subseq_tail *)
+          simpl. apply subseq_tail. apply IHt2. apply H2.
+Qed.
+
+Theorem all_clause: forall X' (f:X'->bool) (h1:X') (t1 tl' l:list X') n (hl':X'),
+    all X' (fun x: X' => f x = true) (h1 :: t1) ->
+    subseq tl' t1 ->
+    l = filter f (h1 :: t1) ->
+    n = length l -> n < length (hl' :: tl') ->
+    all X' (fun x0 : X' => f x0 = true) t1 /\ subseq tl' t1 /\ pred n < length tl'.
+Proof.
+    intros X' f' h1 t1 tl'' l'' n0 hl' Hall' Hsubseq' Hfilter' Hlen'l Hlen'l'.
+      split. inversion Hall'. apply H2.
+      split. apply Hsubseq'.
+      destruct n0.
+        -  (* n=0 *)
+          rewrite Hfilter' in Hlen'l. simpl in Hlen'l. destruct (f' h1) eqn:Hfh1.
+            inversion Hlen'l.
+            inversion Hall'. rewrite H1 in Hfh1. inversion Hfh1.
+        -  (* n=S *)
+          simpl. unfold lt. unfold lt in Hlen'l'.
+          simpl in Hlen'l'. apply Sn_le_Sm__n_le_m in Hlen'l'.
+          apply Hlen'l'.
+Qed.
+ 
 Theorem filter_challenge_2: forall (X:Type) (f:X -> bool) (l1 l:list X) n,
   l = filter f l1 ->
   n = length l ->
@@ -1408,24 +1819,6 @@ Proof.
   intros l Hfilter Hlenl.
   inversion H as [Hall Hsubseqlenl'].
   inversion Hsubseqlenl' as [Hsubseq Hlenl'].
-  assert (all_clause: forall X' (f:X'->bool) (h1:X') (t1 tl' l:list X') n (hl':X'),
-    all X' (fun x: X' => f x = true) (h1 :: t1) ->
-    subseq tl' t1 ->
-    l = filter f (h1 :: t1) ->
-    n = length l -> n < length (hl' :: tl') ->
-    all X' (fun x0 : X' => f x0 = true) t1 /\ subseq tl' t1 /\ pred n < length tl').
-    intros X' f' h1 t1 tl'' l'' n0 hl' Hall' Hsubseq' Hfilter' Hlen'l Hlen'l'.
-      split. inversion Hall'. apply H3.
-      split. apply Hsubseq'.
-      destruct n0.
-        Case "n=0".
-          rewrite Hfilter' in Hlen'l. simpl in Hlen'l. destruct (f' h1) eqn:Hfh1.
-            inversion Hlen'l.
-            inversion Hall'. rewrite Hfh1 in H2. inversion H2.
-        Case "n=S".
-          simpl. unfold lt. unfold lt in Hlen'l'.
-          simpl in Hlen'l'. apply Sn_le_Sm__n_le_m in Hlen'l'.
-          apply Hlen'l'.
 
   assert (all_clause_tail: forall X f h1 t1 l' n' hl' tl',
     all X (fun x : X => f x = true) (h1 :: t1) ->
@@ -1480,18 +1873,18 @@ Proof.
   generalize dependent l.
   generalize dependent l'.
   induction l1 as [|h1 t1].
-    Case "l1 = []". intros l' Hsubseq l Hfilter n Hexists H Hlenl Hsubseqlenl' Hlenl'.
+    -  (* l1 = [] *) intros l' Hsubseq l Hfilter n Hexists H Hlenl Hsubseqlenl' Hlenl'.
       rewrite Hfilter in Hlenl. simpl in Hlenl.
       inversion Hsubseq. rewrite <- H0 in Hlenl'.
       rewrite Hlenl in Hlenl'. inversion Hlenl'.
-    Case "l1 = h1 :: t1". intros l' Hsubseq l Hfilter n Hexists H Hlenl Hsubseqlenl' Hlenl'.
+    -  (* l1 = h1 :: t1 *) intros l' Hsubseq l Hfilter n Hexists H Hlenl Hsubseqlenl' Hlenl'.
       inversion H as [Hall' Hsubseqlenl''].
       destruct l' as [|hl' tl'].
-        SCase "l' = []".
+        +  (* l' = [] *)
           inversion Hlenl'.
-        SCase "l' = hl' :: tl'".
+        +  (* l' = hl' :: tl' *)
           inversion Hsubseq.
-            SSCase "subseq head".
+            *  (* subseq head *)
               apply IHt1 with (n:=pred n) (l:=(filter f t1)) (l':=tl').
               inversion Hall. apply H8.
               apply H1.
@@ -1510,7 +1903,7 @@ Proof.
               apply Hfilter. apply Hlenl. apply Hlenl'. apply Hall'.
               apply predn_tl with (f':=f) (h1':=h1) (t1':=t1) (l':=l) (hl':=hl').
               apply Hfilter. apply Hlenl. apply Hlenl'. apply Hall'.
-            SSCase "subseq tail".
+            *  (* subseq tail *)
               apply IHt1 with (n:=pred n) (l:=(filter f t1)) (l':=(hl' :: tl')).
               inversion Hall. apply H7.
               apply H2.
@@ -1531,7 +1924,282 @@ Proof.
               apply predn_l with (l:=l) (f:=f) (h1:=h1) (t1:=t1).
               apply Hfilter. apply Hlenl. apply Hlenl'. apply Hall'.
 Qed. (* this may benefit from a certain amount of cleaning up *)
+
 (** [] *)
+(** We've seen two different ways of encoding logical facts in Coq:
+    with _booleans_ (of type [bool]), and with _propositions_ (of type
+    [Prop]).
+
+    For instance, to claim that a number [n] is even, we can say
+    either
+       - (1) that [evenb n] returns [true], or
+       - (2) that there exists some [k] such that [n = double k].
+             Indeed, these two notions of evenness are equivalent, as
+             can easily be shown with a couple of auxiliary lemmas.
+
+    We often say that the boolean [evenb n] _reflects_ the proposition
+    [exists k, n = double k].  *)
+
+Theorem evenb_double : forall k, evenb (double k) = true.
+Proof.
+  intros k. induction k as [|k' IHk'].
+  - reflexivity.
+  - simpl. apply IHk'.
+Qed.
+
+
+Fixpoint halfn (n : nat) : nat :=
+  match n with
+  | S (S n) => S (halfn n)
+  | _ => O
+  end.
+
+Functional Scheme halfn_ind := Induction for halfn Sort Prop.
+
+Theorem negb_extensionality : forall (a b : bool), negb a = negb b <-> a = b.
+Proof.
+  intros a b.
+  split; intros H. destruct a; destruct b. reflexivity. inversion H. inversion H. reflexivity. subst. reflexivity.
+Qed.
+
+Theorem evenb_S_Sn : forall (n : nat), evenb n = evenb (S (S n)).
+Proof.
+  intros n. induction n. reflexivity.
+  rewrite evenb_S.
+  rewrite evenb_S.
+  rewrite negb_extensionality. assumption.
+Qed.
+
+Theorem oddb_S: forall n : nat, oddb (S n) = negb (oddb n).
+Proof.
+  intros n. unfold oddb. rewrite negb_involutive. rewrite <- evenb_S. rewrite <- evenb_S_Sn. reflexivity.
+Qed.
+
+Theorem oddb_S_Sn : forall (n : nat), oddb n = oddb (S (S n)).
+Proof.
+  intros n. induction n. reflexivity.
+  rewrite oddb_S.
+  rewrite oddb_S.
+  rewrite negb_extensionality. assumption.
+Qed.
+
+  
+
+Theorem even_half_double : forall (n : nat), evenb n = true -> double (halfn n) = n.
+Proof.
+  intros n H.
+  functional induction (halfn n).
+  reflexivity.
+  simpl in H. inversion H.
+  simpl. rewrite IHn0. reflexivity. rewrite evenb_S_Sn. assumption.
+Qed.
+
+
+Theorem odd_S_half_double : forall (n : nat), oddb n = true -> S (double (halfn n)) = n.
+Proof.
+  intros n H.
+  functional induction (halfn n).
+  simpl in H. inversion H.
+  reflexivity.
+  simpl. rewrite IHn0. reflexivity. rewrite oddb_S_Sn. assumption.
+Qed.
+
+Theorem negb_oddb_n_evenb_n : forall n, negb (oddb n) = evenb n.
+Proof.
+  intros n. induction n.
+  simpl. reflexivity.
+  unfold oddb. rewrite negb_involutive. reflexivity.
+Qed.
+
+Theorem negb_evenb_n_oddb_n : forall n, negb (evenb n) = oddb n.
+Proof.
+  intros n. rewrite <- negb_extensionality. rewrite negb_involutive. rewrite negb_oddb_n_evenb_n. reflexivity.
+Qed.
+
+(** **** Exercise: 3 stars (evenb_double_conv)  *)
+Theorem evenb_double_conv : forall n,
+  exists k, n = if evenb n then double k
+                else S (double k).
+Proof.
+  intros n.
+  exists (halfn n).
+  remember (evenb n) as t.
+  destruct t.
+  symmetry. apply even_half_double. symmetry. assumption.
+  symmetry. apply odd_S_half_double. rewrite <- negb_extensionality. simpl. rewrite Heqt. rewrite negb_oddb_n_evenb_n. reflexivity.
+Qed.
+
+(** [] *)
+
+Theorem even_bool_prop : forall n,
+  evenb n = true <-> exists k, n = double k.
+Proof.
+  intros n. split.
+  - intros H. destruct (evenb_double_conv n) as [k Hk].
+    rewrite Hk. rewrite H. exists k. reflexivity.
+  - intros [k Hk]. rewrite Hk. apply evenb_double.
+Qed.
+
+(** Similarly, to state that two numbers [n] and [m] are equal, we can
+    say either (1) that [beq_nat n m] returns [true] or (2) that [n =
+    m].  These two notions are equivalent. *)
+
+Theorem beq_nat_true_iff : forall n1 n2 : nat,
+  beq_nat n1 n2 = true <-> n1 = n2.
+Proof.
+  intros n1 n2. split.
+  - apply beq_nat_true.
+  - intros H. rewrite H. rewrite <- beq_nat_refl. reflexivity.
+Qed.
+
+(** However, while the boolean and propositional formulations of a
+    claim are equivalent from a purely logical perspective, they need
+    not be equivalent _operationally_.  Equality provides an extreme
+    example: knowing that [beq_nat n m = true] is generally of little
+    direct help in the middle of a proof involving [n] and [m];
+    however, if we convert the statement to the equivalent form [n =
+    m], we can rewrite with it.
+
+    The case of even numbers is also interesting.  Recall that,
+    when proving the backwards direction of [even_bool_prop] (i.e.,
+    [evenb_double], going from the propositional to the boolean
+    claim), we used a simple induction on [k].  On the other hand, the
+    converse (the [evenb_double_conv] exercise) required a clever
+    generalization, since we can't directly prove [(exists k, n =
+    double k) -> evenb n = true].
+
+    For these examples, the propositional claims are more useful than
+    their boolean counterparts, but this is not always the case.  For
+    instance, we cannot test whether a general proposition is true or
+    not in a function definition; as a consequence, the following code
+    fragment is rejected: *)
+
+Fail Definition is_even_prime n :=
+  if n = 2 then true
+  else false.
+
+(** Coq complains that [n = 2] has type [Prop], while it expects an
+    elements of [bool] (or some other inductive type with two
+    elements).  The reason for this error message has to do with the
+    _computational_ nature of Coq's core language, which is designed
+    so that every function that it can express is computable and
+    total.  One reason for this is to allow the extraction of
+    executable programs from Coq developments.  As a consequence,
+    [Prop] in Coq does _not_ have a universal case analysis operation
+    telling whether any given proposition is true or false, since such
+    an operation would allow us to write non-computable functions.
+
+    Although general non-computable properties cannot be phrased as
+    boolean computations, it is worth noting that even many
+    _computable_ properties are easier to express using [Prop] than
+    [bool], since recursive function definitions are subject to
+    significant restrictions in Coq.  For instance, the next chapter
+    shows how to define the property that a regular expression matches
+    a given string using [Prop].  Doing the same with [bool] would
+    amount to writing a regular expression matcher, which would be
+    more complicated, harder to understand, and harder to reason
+    about.
+
+    Conversely, an important side benefit of stating facts using
+    booleans is enabling some proof automation through computation
+    with Coq terms, a technique known as _proof by
+    reflection_.  Consider the following statement: *)
+
+Example even_1000 : exists k, 1000 = double k.
+
+(** The most direct proof of this fact is to give the value of [k]
+    explicitly. *)
+
+Proof. exists 500. reflexivity. Qed.
+
+(** On the other hand, the proof of the corresponding boolean
+    statement is even simpler: *)
+
+Example even_1000' : evenb 1000 = true.
+Proof. reflexivity. Qed.
+
+(** What is interesting is that, since the two notions are equivalent,
+    we can use the boolean formulation to prove the other one without
+    mentioning the value 500 explicitly: *)
+
+Example even_1000'' : exists k, 1000 = double k.
+Proof. apply even_bool_prop. reflexivity. Qed.
+
+(** Although we haven't gained much in terms of proof size in this
+    case, larger proofs can often be made considerably simpler by the
+    use of reflection.  As an extreme example, the Coq proof of the
+    famous _4-color theorem_ uses reflection to reduce the analysis of
+    hundreds of different cases to a boolean computation.  We won't
+    cover reflection in great detail, but it serves as a good example
+    showing the complementary strengths of booleans and general
+    propositions. *)
+
+(** **** Exercise: 2 stars (logical_connectives)  *)
+(** The following lemmas relate the propositional connectives studied
+    in this chapter to the corresponding boolean operations. *)
+
+Lemma andb_true_iff : forall b1 b2:bool,
+  b1 && b2 = true <-> b1 = true /\ b2 = true.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+Lemma orb_true_iff : forall b1 b2,
+  b1 || b2 = true <-> b1 = true \/ b2 = true.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+(** **** Exercise: 1 star (beq_nat_false_iff)  *)
+(** The following theorem is an alternate "negative" formulation of
+    [beq_nat_true_iff] that is more convenient in certain
+    situations (we'll see examples in later chapters). *)
+
+Theorem beq_nat_false_iff : forall x y : nat,
+  beq_nat x y = false <-> x <> y.
+Proof.
+  (* FILL IN HERE *) Admitted.
+(** [] *)
+
+(** **** Exercise: 3 stars (beq_list)  *)
+(** Given a boolean operator [beq] for testing equality of elements of
+    some type [A], we can define a function [beq_list beq] for testing
+    equality of lists with elements in [A].  Complete the definition
+    of the [beq_list] function below.  To make sure that your
+    definition is correct, prove the lemma [beq_list_true_iff]. *)
+
+Fixpoint beq_list {A : Type} (beq : A -> A -> bool)
+                  (l1 l2 : list A) : bool
+  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+
+Lemma beq_list_true_iff :
+  forall A (beq : A -> A -> bool),
+    (forall a1 a2, beq a1 a2 = true <-> a1 = a2) ->
+    forall l1 l2, beq_list beq l1 l2 = true <-> l1 = l2.
+Proof.
+(* FILL IN HERE *) Admitted.
+(** [] *)
+
+(** **** Exercise: 2 stars, recommended (All_forallb)  *)
+(** Recall the function [forallb], from the exercise
+    [forall_exists_challenge] in chapter [Tactics]: *)
+
+Fixpoint forallb' {X : Type} (test : X -> bool) (l : list X) : bool :=
+  match l with
+  | [] => true
+  | x :: l' => andb (test x) (forallb test l')
+  end.
+
+(** Prove the theorem below, which relates [forallb] to the [All]
+    property of the above exercise. *)
+
+Theorem forallb_true_iff : forall X test (l : list X),
+   forallb test l = true <-> All (fun x => test x = true) l.
+Proof.
+  (* FILL IN HERE *) Admitted.
+
+(** Are there any important properties of the function [forallb] which
+    are not captured by this specification? *)
+
+
 
 (** **** Exercise: 4 stars, advanced (no_repeats) *)
 (** The following inductively defined proposition... *)
@@ -1542,18 +2210,17 @@ Inductive appears_in {X:Type} (a:X) : list X -> Prop :=
 
 (** ...gives us a precise way of saying that a value [a] appears at
     least once as a member of a list [l]. 
-
     Here's a pair of warm-ups about [appears_in].
 *)
 
 Lemma appears_in_app : forall (X:Type) (xs ys : list X) (x:X), 
      appears_in x (xs ++ ys) -> appears_in x xs \/ appears_in x ys.
-Proof.
+Proof.        
   intros X xs ys x Happ.
   generalize dependent ys.
   induction xs as [|hxs txs].
-    Case "xs = []". intros ys Happ. simpl in Happ. right. apply Happ.
-    Case "xs = hxs :: txs". intros ys Happ.
+    -  (* xs = [] *) intros ys Happ. simpl in Happ. right. apply Happ.
+    -  (* xs = hxs :: txs *) intros ys Happ.
       inversion Happ. left. apply ai_here.
       apply IHtxs in H0.
       inversion H0.
@@ -1581,6 +2248,17 @@ Proof.
     simpl. apply ai_later. apply IHxs.
 Qed.
 
+Lemma app_length : forall (X:Type) (l1 l2 : list X),
+  length (l1 ++ l2) = length l1 + length l2. 
+Proof. 
+  intros X l1 l2.
+  induction l1.
+    -  (* l1 nil *)
+      simpl. reflexivity.
+    -  (* l1 cons *)
+      simpl. apply f_equal. apply IHl1.
+Qed.
+
 
 Theorem not_appears_in_app_l : forall (X:Type) (xs ys : list X) (x:X),
   ~appears_in x (xs ++ ys) -> ~ appears_in x xs.
@@ -1603,13 +2281,13 @@ Lemma app_appears_in : forall (X:Type) (xs ys : list X) (x:X),
 Proof.
   intros X xs ys x Hor.
   inversion Hor.
-  Case "appears in xs".
+  -  (* appears in xs *)
     induction xs.
       inversion H.
       inversion H.
         apply ai_here.
         simpl. apply ai_later. apply IHxs. left. apply H1. apply H1.
-  Case "appears in ys".
+  -  (* appears in ys *)
     generalize dependent xs.
     induction ys.
       inversion H.
@@ -1618,7 +2296,64 @@ Proof.
         intros Hor. simpl. apply ai_later. apply IHxs. right. apply H.
 Qed.
     
-  
+Lemma appears_in_app_split : forall (X:Type) (x:X) (l:list X),
+  appears_in x l -> 
+  exists l1, exists l2, l = l1 ++ (x::l2).
+Proof.  
+  intros X x l Hap.
+  induction Hap.
+    -  (* ai_here *) exists []. exists l. simpl. reflexivity.
+    -  (* ai_later *)
+      inversion IHHap as [l1].
+      inversion H as [l2].
+      rewrite H0.
+      exists (b :: l1). exists l2.
+      simpl. reflexivity.
+Qed.
+
+Lemma app_split_appears_in : forall (X:Type) (x:X) (l l1 l2:list X),
+  l = l1 ++ (x::l2) -> 
+  appears_in x l.
+Proof.
+  intros X x l l1 l2.
+  generalize dependent l1.
+  induction l.
+    intros l1 Hsplit. destruct l1. inversion Hsplit. inversion Hsplit.
+    intros l1 Hsplit.
+    destruct l1.
+      simpl in Hsplit. rewrite Hsplit. apply ai_here.
+      simpl in Hsplit. inversion Hsplit. rewrite <- H1.
+      apply IHl in H1. apply ai_later. apply H1.
+Qed.
+
+Inductive app_split {X:Type} : list X -> Prop :=
+  | app_split_nil : app_split []
+  | app_split_cons : forall h l1 l2, app_split (l1 ++ (h::l2)).
+
+(** Now define a predicate [repeats] (analogous to [no_repeats] in the
+   exercise above), such that [repeats X l] asserts that [l] contains
+   at least one repeated element (of type [X]).  *)
+
+Inductive repeats {X:Type} : list X -> Prop :=
+  | repeats_head : forall h t, appears_in h t -> repeats (h::t)
+  | repeats_tail : forall h t, repeats t -> repeats (h::t)
+.
+
+Example test_repeats: repeats [1;2;4;2].
+Proof.
+  apply repeats_tail. 
+  apply repeats_head. apply ai_later. apply ai_here.
+Qed.
+
+Example test_repeats2: ~ repeats [1;2].
+Proof.
+  unfold not.
+  intros H.
+  inversion H.
+  inversion H1. inversion H4. inversion H1.
+  inversion H4. inversion H4.
+Qed.
+
 (** Now use [appears_in] to define a proposition [disjoint X l1 l2],
     which should be provable exactly when [l1] and [l2] are
     lists (with elements of type X) that have no elements in common. *)
@@ -1626,13 +2361,6 @@ Qed.
 Definition disjoint (X:Type) (l1 l2:list X) := forall x,
                      (appears_in x l1 -> ~appears_in x l2) /\
                      (appears_in x l2 -> ~appears_in x l1).
-
-(** Next, use [appears_in] to define an inductive proposition
-    [no_repeats X l], which should be provable exactly when [l] is a
-    list (with elements of type [X]) where every member is different
-    from every other.  For example, [no_repeats nat [1,2,3,4]] and
-    [no_repeats bool []] should be provable, while [no_repeats nat
-    [1,2,1]] and [no_repeats bool [true,true]] should not be.  *)
 
 Inductive no_repeats {X:Type} : list X -> Prop :=
  | no_repeats_nil : no_repeats []
@@ -1663,9 +2391,6 @@ Qed.
 
 (* that seems to be generally satisfactory *)
 
-(** Finally, state and prove one or more interesting theorems relating
-    [disjoint], [no_repeats] and [++] (list append).  *)
-
 Theorem disjoint_cons_l: forall X l1 l2 h,
   disjoint X l1 l2 -> ~ appears_in h l2 -> disjoint X (h::l1) l2.
 Proof.
@@ -1673,13 +2398,13 @@ Proof.
   unfold disjoint. unfold disjoint in Hdisj.
   intros x. assert (Hdisjx := Hdisj x). inversion Hdisjx.
   split.
-    Case "in l1".
+    -  (* in l1 *)
       intros Hapl1. unfold not in Hap.
       inversion Hapl1.
         unfold not. apply Hap.
         unfold not. intros Hapl2. apply H0 in Hapl2.
         unfold not in Hapl2. apply Hapl2 in H2. inversion H2.
-    Case "in l2".
+    -  (* in l2 *)
       intros Hapl2.
       inversion Hapl2.
         unfold not. intros Hapl1. inversion Hapl1. unfold not in Hap.
@@ -1698,13 +2423,13 @@ Proof.
   unfold disjoint in Hdisj.
   intros x. assert (Hdisjx := Hdisj x). inversion Hdisjx.
   split.
-    Case "in l1".
+    -  (* in l1 *)
       intros Hapl1. unfold not in Hap.
       unfold not. intros Hapl2.
       inversion Hapl2.
         rewrite H2 in Hapl1. apply Hap in Hapl1. inversion Hapl1.
         apply H0 in H2. apply H2 in Hapl1. inversion Hapl1.
-    Case "in h::l2".
+    -  (* in h::l2 *)
       intros Hapl2. unfold not in Hap.
       unfold not. intros Hapl1.
       inversion Hapl2.
@@ -1797,16 +2522,15 @@ Proof.
   unfold disjoint.
   intros x.
   split.
-    Case "in l1". intros Hapl1.
+    -  (* in l1 *) intros Hapl1.
       apply no_repeats_appears_in_l with l1.
       apply Hapl1. apply Hnr.
-    Case "in l2". intros Hapl2.
+    -  (* in l2 *) intros Hapl2.
       apply no_repeats_appears_in_r with l2.
       apply Hapl2. apply Hnr.
 Qed.
 
 (** [] *)
-
 
 (** **** Exercise: 3 stars (nostutter) *)
 (** Formulating inductive definitions of predicates is an important
@@ -1857,92 +2581,134 @@ Example test_nostutter_4:      not (nostutter [3;1;1;4]).
     h: nostutter _ |- _ => inversion h; clear h; subst 
   end.
   contradiction H1; auto. Qed.
+
+
+(* ================================================================= *)
+(** ** Classical vs. Constructive Logic *)
+
+(** We have seen that it is not possible to test whether or not a
+    proposition [P] holds while defining a Coq function.  You may be
+    surprised to learn that a similar restriction applies to _proofs_!
+    In other words, the following intuitive reasoning principle is not
+    derivable in Coq: *)
+
+
+(** To understand operationally why this is the case, recall
+    that, to prove a statement of the form [P \/ Q], we use the [left]
+    and [right] tactics, which effectively require knowing which side
+    of the disjunction holds.  But the universally quantified [P] in
+    [excluded_middle] is an _arbitrary_ proposition, which we know
+    nothing about.  We don't have enough information to choose which
+    of [left] or [right] to apply, just as Coq doesn't have enough
+    information to mechanically decide whether [P] holds or not inside
+    a function. *)
+
+(** However, if we happen to know that [P] is reflected in some
+    boolean term [b], then knowing whether it holds or not is trivial:
+    we just have to check the value of [b]. *)
+
+Theorem restricted_excluded_middle : forall P b,
+  (P <-> b = true) -> P \/ ~ P.
+Proof.
+  intros P [] H.
+  - left. rewrite H. reflexivity.
+  - right. rewrite H. intros contra. inversion contra.
+Qed.
+
+(** In particular, the excluded middle is valid for equations [n = m],
+    between natural numbers [n] and [m]. *)
+
+Theorem restricted_excluded_middle_eq : forall (n m : nat),
+  n = m \/ n <> m.
+Proof.
+  intros n m.
+  apply (restricted_excluded_middle (n = m) (beq_nat n m)).
+  symmetry.
+  apply beq_nat_true_iff.
+Qed.
+
+(** It may seem strange that the general excluded middle is not
+    available by default in Coq; after all, any given claim must be
+    either true or false.  Nonetheless, there is an advantage in not
+    assuming the excluded middle: statements in Coq can make stronger
+    claims than the analogous statements in standard mathematics.
+    Notably, if there is a Coq proof of [exists x, P x], it is
+    possible to explicitly exhibit a value of [x] for which we can
+    prove [P x] -- in other words, every proof of existence is
+    necessarily _constructive_. *)
+
+(** Logics like Coq's, which do not assume the excluded middle, are
+    referred to as _constructive logics_.
+
+    More conventional logical systems such as ZFC, in which the
+    excluded middle does hold for arbitrary propositions, are referred
+    to as _classical_. *)
+
+(** The following example illustrates why assuming the excluded middle
+    may lead to non-constructive proofs:
+
+    _Claim_: There exist irrational numbers [a] and [b] such that [a ^
+    b] is rational.
+
+    _Proof_: It is not difficult to show that [sqrt 2] is irrational.
+    If [sqrt 2 ^ sqrt 2] is rational, it suffices to take [a = b =
+    sqrt 2] and we are done.  Otherwise, [sqrt 2 ^ sqrt 2] is
+    irrational.  In this case, we can take [a = sqrt 2 ^ sqrt 2] and
+    [b = sqrt 2], since [a ^ b = sqrt 2 ^ (sqrt 2 * sqrt 2) = sqrt 2 ^
+    2 = 2].  []
+
+    Do you see what happened here?  We used the excluded middle to
+    consider separately the cases where [sqrt 2 ^ sqrt 2] is rational
+    and where it is not, without knowing which one actually holds!
+    Because of that, we wind up knowing that such [a] and [b] exist
+    but we cannot determine what their actual values are (at least,
+    using this line of argument).
+
+    As useful as constructive logic is, it does have its limitations:
+    There are many statements that can easily be proven in classical
+    logic but that have much more complicated constructive proofs, and
+    there are some that are known to have no constructive proof at
+    all!  Fortunately, like functional extensionality, the excluded
+    middle is known to be compatible with Coq's logic, allowing us to
+    add it safely as an axiom.  However, we will not need to do so in
+    this book: the results that we cover can be developed entirely
+    within constructive logic at negligible extra cost.
+
+    It takes some practice to understand which proof techniques must
+    be avoided in constructive reasoning, but arguments by
+    contradiction, in particular, are infamous for leading to
+    non-constructive proofs.  Here's a typical example: suppose that
+    we want to show that there exists [x] with some property [P],
+    i.e., such that [P x].  We start by assuming that our conclusion
+    is false; that is, [~ exists x, P x]. From this premise, it is not
+    hard to derive [forall x, ~ P x].  If we manage to show that this
+    intermediate fact results in a contradiction, we arrive at an
+    existence proof without ever exhibiting a value of [x] for which
+    [P x] holds!
+
+    The technical flaw here, from a constructive standpoint, is that
+    we claimed to prove [exists x, P x] using a proof of
+    [~ ~ (exists x, P x)].  Allowing ourselves to remove double
+    negations from arbitrary statements is equivalent to assuming the
+    excluded middle, as shown in one of the exercises below.  Thus,
+    this line of reasoning cannot be encoded in Coq without assuming
+    additional axioms. *)
+
+(** **** Exercise: 3 stars (excluded_middle_irrefutable)  *)
+(** The consistency of Coq with the general excluded middle axiom
+    requires complicated reasoning that cannot be carried out within
+    Coq itself.  However, the following theorem implies that it is
+    always safe to assume a decidability axiom (i.e., an instance of
+    excluded middle) for any _particular_ Prop [P].  Why? Because we
+    cannot prove the negation of such an axiom; if we could, we would
+    have both [~ (P \/ ~P)] and [~ ~ (P \/ ~P)], a contradiction. *)
+
+Theorem excluded_middle_irrefutable:  forall (P:Prop),
+  ~ ~ (P \/ ~ P).
+Proof.
+  (* FILL IN HERE *) Admitted.
+  
 (** [] *)
-
-(** **** Exercise: 4 stars, advanced (pigeonhole principle) *)
-(** The "pigeonhole principle" states a basic fact about counting:
-   if you distribute more than [n] items into [n] pigeonholes, some 
-   pigeonhole must contain at least two items.  As is often the case,
-   this apparently trivial fact about numbers requires non-trivial
-   machinery to prove, but we now have enough... *)
-
-(** First a pair of useful lemmas (we already proved these for lists
-    of naturals, but not for arbitrary lists). *)
-
-Lemma app_length : forall (X:Type) (l1 l2 : list X),
-  length (l1 ++ l2) = length l1 + length l2. 
-Proof. 
-  intros X l1 l2.
-  induction l1.
-    Case "l1 nil".
-      simpl. reflexivity.
-    Case "l1 cons".
-      simpl. apply f_equal. apply IHl1.
-Qed.
-
-Lemma appears_in_app_split : forall (X:Type) (x:X) (l:list X),
-  appears_in x l -> 
-  exists l1, exists l2, l = l1 ++ (x::l2).
-Proof.
-  intros X x l Hap.
-  induction Hap.
-    Case "ai_here". exists []. exists l. simpl. reflexivity.
-    Case "ai_later".
-      inversion IHHap as [l1].
-      inversion H as [l2].
-      rewrite H0.
-      exists (b :: l1). exists l2.
-      simpl. reflexivity.
-Qed.
-
-Lemma app_split_appears_in : forall (X:Type) (x:X) (l l1 l2:list X),
-  l = l1 ++ (x::l2) -> 
-  appears_in x l.
-Proof.
-  intros X x l l1 l2.
-  generalize dependent l1.
-  induction l.
-    intros l1 Hsplit. destruct l1. inversion Hsplit. inversion Hsplit.
-    intros l1 Hsplit.
-    destruct l1.
-      simpl in Hsplit. rewrite Hsplit. apply ai_here.
-      simpl in Hsplit. inversion Hsplit. rewrite <- H1.
-      apply IHl in H1. apply ai_later. apply H1.
-Qed.
-
-Inductive app_split {X:Type} : list X -> Prop :=
-  | app_split_nil : app_split []
-  | app_split_cons : forall h l1 l2, app_split (l1 ++ (h::l2)).
-
-(** Now define a predicate [repeats] (analogous to [no_repeats] in the
-   exercise above), such that [repeats X l] asserts that [l] contains
-   at least one repeated element (of type [X]).  *)
-
-Inductive repeats {X:Type} : list X -> Prop :=
-  | repeats_head : forall h t, appears_in h t -> repeats (h::t)
-  | repeats_tail : forall h t, repeats t -> repeats (h::t)
-.
-
-Example test_repeats: repeats [1;2;4;2].
-Proof.
-  apply repeats_tail. 
-  apply repeats_head. apply ai_later. apply ai_here.
-Qed.
-
-Example test_repeats2: ~ repeats [1;2].
-Proof.
-  unfold not.
-  intros H.
-  inversion H.
-  inversion H1. inversion H4. inversion H1.
-  inversion H4. inversion H4.
-Qed.
-
-(** Now here's a way to formalize the pigeonhole principle. List [l2]
-   represents a list of pigeonhole labels, and list [l1] represents an
-   assignment of items to labels: if there are more items than labels,
-   at least two items must have the same label.  You will almost
-   certainly need to use the [excluded_middle] hypothesis. *)
 
 Theorem not_ne__eq: forall (X:Type) (x y:X),
   excluded_middle ->
@@ -2052,6 +2818,16 @@ Proof.
   right. apply H0.
 Qed.
 
+Theorem n_le_m__Sn_le_Sm: forall n m: nat, n <= m -> S n <= S m.
+Proof.
+  intros n m H. apply le_n_S. assumption.
+Qed.
+
+Theorem Sn_le_m__Sn_le_Sm: forall n m: nat, S n <= m -> S n <= S m.
+Proof.
+  intros n m H. right. assumption.
+Qed.  
+
 Theorem n_lt_m__Sn_lt_Sm: forall n m: nat, n < m -> S n < S m.
 Proof.
   intros n m Hnm.
@@ -2095,6 +2871,14 @@ Proof.
   intros X l l1 l2 H.
   rewrite H. reflexivity.
 Qed.
+(** [] *)
+
+
+(** Now here's a way to formalize the pigeonhole principle. List [l2]
+   represents a list of pigeonhole labels, and list [l1] represents an
+   assignment of items to labels: if there are more items than labels,
+   at least two items must have the same label.  You will almost
+   certainly need to use the [excluded_middle] hypothesis. *)
 
 Theorem pigeonhole_principle: forall (X:Type) (l1 l2:list X),
   excluded_middle -> 
@@ -2102,21 +2886,21 @@ Theorem pigeonhole_principle: forall (X:Type) (l1 l2:list X),
   length l2 < length l1 -> 
   repeats l1.  
 Proof.  intros X l1. induction l1 as [|h1 t1].
-  Case "l1 nil".
+  -  (* l1 nil *)
     intros l2 Hex Hapx Hlen. destruct l2.
-      SCase "l2 nil". inversion Hlen.
-      SCase "l2 cons". inversion Hlen.
-  Case "l1 cons".
+      +  (* l2 nil *) inversion Hlen.
+      +  (* l2 cons *) inversion Hlen.
+  -  (* l1 cons *)
     intros l2 Hex Hapx Hlen.
     apply repeats_or.
     destruct l2 as [|h2 t2].
-      SCase "l2 = []".
+      +  (* l2 = [] *)
         assert (Hapx': appears_in h1 (h1 :: t1)).
           apply ai_here.
         assert (Hapx'' := Hapx h1).
         apply Hapx'' in Hapx'.
         inversion Hapx'.
-      SCase "l2 = h2::t2".
+      +  (* l2 = h2::t2 *)
         apply imp_or_or with (A:=length (h2 :: t2) < length t1).
         intros Hlen'.
         apply IHt1 with (h2 :: t2).
@@ -2131,8 +2915,6 @@ Proof.  intros X l1. induction l1 as [|h1 t1].
         inversion Haph1t1.
         right. apply H.
 Admitted.
-(** [] *)
 
 
-(* $Date: 2013-07-17 16:19:11 -0400 (Wed, 17 Jul 2013) $ *)
-
+(** $Date: 2016-12-18 16:20:32 -0500 (Sun, 18 Dec 2016) $ *)
